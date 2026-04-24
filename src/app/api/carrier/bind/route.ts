@@ -51,13 +51,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing RCS_HOST environment variable' }, { status: 500 });
     }
 
-    const { targetRoute, extraParams, taskType } = await request.json();
+    const { carrierCode, siteCode, carrierDir } = await request.json();
     
-    // Construct the payload based on RCS-2000 API doc for Task Apply
+    // Construct the payload based on RCS-2000 API doc for Carrier Bind
     const payload = {
-      taskType: taskType || "TRANSPORT",
-      targetRoute: targetRoute || [],
-      ...extraParams,
+      carrierCode: carrierCode,
+      siteCode: siteCode,
+      carrierDir: parseInt(carrierDir) || 0,
     };
     
     const bodyString = JSON.stringify(payload);
@@ -65,7 +65,7 @@ export async function POST(request: Request) {
     // Parse host
     const hostUrl = new URL(rcsHost);
     const hostHeader = hostUrl.host;
-    const path = '/api/robot/controller/task/submit';
+    const path = '/api/robot/controller/carrier/bind';
     
     // Prepare Headers
     const headers: Record<string, string> = {
@@ -105,7 +105,7 @@ export async function POST(request: Request) {
       headers['X-lr-version'] = version;
     }
 
-    console.log(`[RCS] Sending request to: ${rcsUrl}`);
+    console.log(`[RCS] Sending bind request to: ${rcsUrl}`);
 
     const response = await fetch(rcsUrl, {
       method: 'POST',
