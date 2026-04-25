@@ -1070,7 +1070,7 @@ export default function Home() {
                 <h2 className="text-lg font-semibold">{getScanLabel(scanTarget)}</h2>
                 <p className="text-sm text-slate-500">Đưa QR vào giữa khung camera.</p>
               </div>
-              <button onClick={stopScanner} className="icon-button" aria-label="Đóng quét QR">
+              <button type="button" onClick={stopScanner} className="icon-button" aria-label="Đóng quét QR">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -1086,7 +1086,7 @@ export default function Home() {
               </div>
             )}
 
-            <button onClick={stopScanner} className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-3 font-semibold text-white">
+            <button type="button" onClick={stopScanner} className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-3 font-semibold text-white active:bg-slate-700">
               <Square className="h-4 w-4" />
               Dừng quét
             </button>
@@ -1100,9 +1100,10 @@ export default function Home() {
 function TopTab({ active, icon, label, onClick }: { active: boolean; icon: React.ReactNode; label: string; onClick: () => void }) {
   return (
     <button
+      type="button"
       onClick={onClick}
       className={`flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition ${
-        active ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+        active ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200 active:bg-slate-300"
       }`}
     >
       {icon}
@@ -1125,10 +1126,10 @@ function Panel({ title, icon, children }: { title: string; icon: React.ReactNode
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label className="block">
-      <span className="mb-1.5 block text-sm font-semibold text-slate-700">{label}</span>
+    <div className="block">
+      <div className="mb-1.5 block text-sm font-semibold text-slate-700">{label}</div>
       {children}
-    </label>
+    </div>
   );
 }
 
@@ -1154,9 +1155,9 @@ function CodeInput({
       <div className="flex gap-2">
         <div className="relative flex-1">
           <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">{icon}</div>
-          <input value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className="field-input pl-10 font-mono" />
+          <input suppressHydrationWarning value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className="field-input pl-10 font-mono" />
         </div>
-        <button onClick={() => startScan(scanTarget)} className="icon-button h-12 w-12 shrink-0 bg-slate-950 text-white hover:bg-slate-800" aria-label={`Quét ${label}`}>
+        <button type="button" onClick={() => startScan(scanTarget)} className="icon-button h-12 w-12 shrink-0 bg-slate-950 text-white hover:bg-slate-800 active:bg-slate-700" aria-label={`Quét ${label}`}>
           <QrCode className="h-5 w-5" />
         </button>
       </div>
@@ -1188,14 +1189,16 @@ function QuickMovePanel(props: {
     <Panel title="Chạy robot nhanh" icon={<Bot className="h-5 w-5" />}>
       <div className="grid grid-cols-2 gap-2 rounded-lg bg-slate-100 p-1">
         <button
+          type="button"
           onClick={() => props.setMoveMode("carrier-to-site")}
-          className={`rounded-md px-3 py-3 text-sm font-semibold ${props.moveMode === "carrier-to-site" ? "bg-white text-slate-950 shadow-sm" : "text-slate-600"}`}
+          className={`rounded-md px-3 py-3 text-sm font-semibold transition ${props.moveMode === "carrier-to-site" ? "bg-white text-slate-950 shadow-sm" : "text-slate-600 active:bg-slate-200"}`}
         >
           Kệ {"->"} Trạm
         </button>
         <button
+          type="button"
           onClick={() => props.setMoveMode("site-to-site")}
-          className={`rounded-md px-3 py-3 text-sm font-semibold ${props.moveMode === "site-to-site" ? "bg-white text-slate-950 shadow-sm" : "text-slate-600"}`}
+          className={`rounded-md px-3 py-3 text-sm font-semibold transition ${props.moveMode === "site-to-site" ? "bg-white text-slate-950 shadow-sm" : "text-slate-600 active:bg-slate-200"}`}
         >
           Vị trí {"->"} Vị trí
         </button>
@@ -1247,17 +1250,17 @@ function QuickMovePanel(props: {
 
       <div className="grid gap-3 md:grid-cols-3">
         <Field label="Task type">
-          <input value={props.taskType} onChange={(event) => props.setTaskType(event.target.value)} className="field-input font-mono" />
+          <input suppressHydrationWarning value={props.taskType} onChange={(event) => props.setTaskType(event.target.value)} className="field-input font-mono" />
         </Field>
         <Field label="Ưu tiên">
-          <input value={props.priority} onChange={(event) => props.setPriority(event.target.value)} inputMode="numeric" className="field-input" />
+          <input suppressHydrationWarning value={props.priority} onChange={(event) => props.setPriority(event.target.value)} inputMode="numeric" className="field-input" />
         </Field>
         <Field label="Loại kệ">
-          <input value={props.carrierType} onChange={(event) => props.setCarrierType(event.target.value)} className="field-input" />
+          <input suppressHydrationWarning value={props.carrierType} onChange={(event) => props.setCarrierType(event.target.value)} className="field-input" />
         </Field>
       </div>
 
-      <button onClick={props.executeMoveTask} disabled={!props.moveReady || props.loading} className="primary-button">
+      <button type="button" onClick={props.executeMoveTask} disabled={!props.moveReady || props.loading} className="primary-button">
         {props.loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Play className="h-5 w-5" />}
         Gửi lệnh robot
       </button>
@@ -1303,7 +1306,7 @@ function QuickBindPanel(props: {
 
       <div className="grid gap-3 md:grid-cols-2">
         <Field label="Góc kệ">
-          <select value={props.bindDirection} onChange={(event) => props.setBindDirection(event.target.value)} className="field-input">
+          <select suppressHydrationWarning value={props.bindDirection} onChange={(event) => props.setBindDirection(event.target.value)} className="field-input">
             <option value="0">0 độ</option>
             <option value="90">90 độ</option>
             <option value="180">180 độ</option>
@@ -1312,14 +1315,15 @@ function QuickBindPanel(props: {
           </select>
         </Field>
         <Field label="Loại kệ">
-          <input value={props.carrierType} onChange={(event) => props.setCarrierType(event.target.value)} className="field-input" />
+          <input suppressHydrationWarning value={props.carrierType} onChange={(event) => props.setCarrierType(event.target.value)} className="field-input" />
         </Field>
       </div>
 
       <button
+        type="button"
         onClick={props.executeBind}
         disabled={!props.bindCarrierCode.trim() || !props.bindSiteCode.trim() || props.loading}
-        className="primary-button bg-amber-600 hover:bg-amber-500 disabled:bg-amber-300"
+        className="primary-button bg-amber-600 hover:bg-amber-500 active:bg-amber-400 disabled:bg-amber-300"
       >
         {props.loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <CheckCircle2 className="h-5 w-5" />}
         Xác nhận gắn kệ
@@ -1346,7 +1350,7 @@ function QuickStatusPanel(props: {
         placeholder="robotTaskCode"
         icon={<ClipboardList className="h-5 w-5" />}
       />
-      <button onClick={props.queryTaskStatus} disabled={props.loading} className="secondary-button">
+      <button type="button" onClick={props.queryTaskStatus} disabled={props.loading} className="secondary-button">
         {props.loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <RotateCw className="h-5 w-5" />}
         Kiểm tra task
       </button>
@@ -1419,10 +1423,11 @@ function ApiConsole({
         <div className="space-y-2">
           {apis.map((api) => (
             <button
+              type="button"
               key={api.id}
               onClick={() => setSelectedByGroup((current) => ({ ...current, [group]: api.id }))}
               className={`w-full rounded-xl border p-3 text-left transition ${
-                selectedApi.id === api.id ? "border-slate-950 bg-white shadow-sm" : "border-slate-200 bg-white hover:border-slate-400"
+                selectedApi.id === api.id ? "border-slate-950 bg-white shadow-sm" : "border-slate-200 bg-white hover:border-slate-400 active:bg-slate-50"
               }`}
             >
               <div className="mb-1 flex items-start justify-between gap-2">
@@ -1465,7 +1470,7 @@ function ApiConsole({
                 <pre className="mt-2 overflow-auto rounded bg-white p-2 font-mono text-xs text-blue-900">{selectedApi.localCallbackPath}</pre>
               </div>
               <Field label="Payload mẫu RCS sẽ gửi">
-                <textarea value={payloadText} readOnly rows={12} className="field-input min-h-72 resize-y font-mono text-sm" />
+                <textarea suppressHydrationWarning value={payloadText} readOnly rows={12} className="field-input min-h-72 resize-y font-mono text-sm" />
               </Field>
             </div>
           ) : (
@@ -1491,7 +1496,7 @@ function ApiConsole({
                     <p className="mb-2 text-sm font-semibold text-slate-700">Dữ liệu sẽ gửi sang RCS</p>
                     <pre className="max-h-72 overflow-auto rounded-lg bg-slate-950 p-3 text-xs text-slate-100">{formatJson(formPayload)}</pre>
                   </div>
-                  <button onClick={() => executeCatalogApi(selectedApi, formPayload)} disabled={loadingAction === selectedApi.id} className="primary-button">
+                  <button type="button" onClick={() => executeCatalogApi(selectedApi, formPayload)} disabled={loadingAction === selectedApi.id} className="primary-button">
                     {loadingAction === selectedApi.id ? <Loader2 className="h-5 w-5 animate-spin" /> : <Play className="h-5 w-5" />}
                     Gửi lệnh bằng form
                   </button>
@@ -1507,6 +1512,7 @@ function ApiConsole({
                 <div className="mt-3 space-y-3">
                   <Field label="Payload JSON">
                     <textarea
+                      suppressHydrationWarning
                       value={payloadText}
                       onChange={(event) => setPayloadTexts((current) => ({ ...current, [selectedApi.id]: event.target.value }))}
                       rows={12}
@@ -1515,11 +1521,12 @@ function ApiConsole({
                     />
                   </Field>
                   <div className="grid gap-2 md:grid-cols-[1fr_auto]">
-                    <button onClick={callUsingJson} disabled={loadingAction === selectedApi.id} className="secondary-button">
+                    <button type="button" onClick={callUsingJson} disabled={loadingAction === selectedApi.id} className="secondary-button">
                       {loadingAction === selectedApi.id ? <Loader2 className="h-5 w-5 animate-spin" /> : <Settings2 className="h-5 w-5" />}
                       Gửi bằng JSON nâng cao
                     </button>
                     <button
+                      type="button"
                       onClick={() => setPayloadTexts((current) => ({ ...current, [selectedApi.id]: formatJson(selectedApi.defaultPayload) }))}
                       className="secondary-button md:w-auto"
                     >
@@ -1553,7 +1560,7 @@ function ApiFieldInput({
 }) {
   const input =
     field.type === "select" ? (
-      <select value={value} onChange={(event) => onChange(event.target.value)} className="field-input">
+      <select suppressHydrationWarning value={value} onChange={(event) => onChange(event.target.value)} className="field-input">
         {(field.options ?? []).map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}
@@ -1561,9 +1568,9 @@ function ApiFieldInput({
         ))}
       </select>
     ) : field.type === "textarea" ? (
-      <textarea value={value} onChange={(event) => onChange(event.target.value)} rows={4} className="field-input resize-y" placeholder={field.placeholder} />
+      <textarea suppressHydrationWarning value={value} onChange={(event) => onChange(event.target.value)} rows={4} className="field-input resize-y" placeholder={field.placeholder} />
     ) : (
-      <input value={value} onChange={(event) => onChange(event.target.value)} type={field.type === "number" ? "number" : "text"} className="field-input" placeholder={field.placeholder} />
+      <input suppressHydrationWarning value={value} onChange={(event) => onChange(event.target.value)} type={field.type === "number" ? "number" : "text"} className="field-input" placeholder={field.placeholder} />
     );
 
   return (
@@ -1573,8 +1580,9 @@ function ApiFieldInput({
           <div className="flex-1">{input}</div>
           {field.qr && (
             <button
+              type="button"
               onClick={() => startScan({ kind: "apiField", apiId, fieldName: field.name, label: field.label })}
-              className="icon-button h-12 w-12 shrink-0 bg-slate-950 text-white hover:bg-slate-800"
+              className="icon-button h-12 w-12 shrink-0 bg-slate-950 text-white hover:bg-slate-800 active:bg-slate-700"
               aria-label={`Quét ${field.label}`}
             >
               <QrCode className="h-5 w-5" />
