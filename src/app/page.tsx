@@ -20,6 +20,7 @@ import {
   Settings2,
   ShieldAlert,
   Square,
+  Unlink,
   X,
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
@@ -680,6 +681,7 @@ export default function Home() {
   const [bindCarrierCode, setBindCarrierCode] = useState("");
   const [bindSiteCode, setBindSiteCode] = useState("");
   const [bindDirection, setBindDirection] = useState("0");
+  const [bindInvoke, setBindInvoke] = useState<"BIND" | "UNBIND">("BIND");
   const [statusTaskCode, setStatusTaskCode] = useState("");
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [scanTarget, setScanTarget] = useState<ScanTarget | null>(null);
@@ -862,28 +864,35 @@ export default function Home() {
       return;
     }
 
-    const confirmed = window.confirm(
-      `Gắn kệ vào vị trí này trên RCS?\n\nKệ: ${bindCarrierCode.trim()}\nVị trí: ${bindSiteCode.trim()}\nGóc: ${bindDirection} độ`
-    );
+    const isBind = bindInvoke === "BIND";
+    const confirmMsg = isBind
+      ? `Gắn kệ vào vị trí này trên RCS?\n\nKệ: ${bindCarrierCode.trim()}\nVị trí: ${bindSiteCode.trim()}\nGóc: ${bindDirection} độ`
+      : `Bỏ gắn kệ khỏi vị trí này trên RCS?\n\nKệ: ${bindCarrierCode.trim()}\nVị trí: ${bindSiteCode.trim()}`;
+    const confirmed = window.confirm(confirmMsg);
     if (!confirmed) return;
 
     setLoadingAction("bind");
     try {
-      const result = await callRcsAction("site-bind", {
+      const payload: Record<string, unknown> = {
         slotCategory: "SITE",
         slotCode: bindSiteCode.trim(),
         carrierCategory: "POD",
-        carrierType: carrierType.trim() || undefined,
         carrierCode: bindCarrierCode.trim(),
-        carrierDir: Number(bindDirection),
-        invoke: "BIND",
+        invoke: bindInvoke,
         extra: null,
-      });
+      };
+
+      if (isBind) {
+        payload.carrierType = carrierType.trim() || undefined;
+        payload.carrierDir = Number(bindDirection);
+      }
+
+      const result = await callRcsAction("site-bind", payload);
 
       if (isRcsSuccess(result)) {
-        toast.success("Đã gắn kệ vào vị trí trên RCS.");
+        toast.success(isBind ? "Đã gắn kệ vào vị trí trên RCS." : "Đã bỏ gắn kệ khỏi vị trí trên RCS.");
         saveRecentAction({
-          title: "Gắn kệ",
+          title: isBind ? "Gắn kệ" : "Bỏ gắn kệ",
           detail: `${bindCarrierCode.trim()} tại ${bindSiteCode.trim()}`,
           code: getRcsCode(result),
         });
@@ -1024,6 +1033,8 @@ export default function Home() {
                   setBindSiteCode={setBindSiteCode}
                   bindDirection={bindDirection}
                   setBindDirection={setBindDirection}
+                  bindInvoke={bindInvoke}
+                  setBindInvoke={setBindInvoke}
                   carrierType={carrierType}
                   setCarrierType={setCarrierType}
                   loading={loadingAction === "bind"}
@@ -1275,14 +1286,35 @@ function QuickBindPanel(props: {
   setBindSiteCode: (value: string) => void;
   bindDirection: string;
   setBindDirection: (value: string) => void;
+  bindInvoke: "BIND" | "UNBIND";
+  setBindInvoke: (value: "BIND" | "UNBIND") => void;
   carrierType: string;
   setCarrierType: (value: string) => void;
   loading: boolean;
   startScan: (target: ScanTarget) => void;
   executeBind: () => void;
 }) {
+  const isBind = props.bindInvoke === "BIND";
+
   return (
-    <Panel title="Gắn kệ vào vị trí" icon={<Package className="h-5 w-5" />}>
+    <Panel title="Gắn / Bỏ gắn kệ" icon={<Package className="h-5 w-5" />}>
+      <div className="grid grid-cols-2 gap-2 rounded-lg bg-slate-100 p-1">
+        <button
+          type="button"
+          onClick={() => props.setBindInvoke("BIND")}
+          className={`rounded-md px-3 py-3 text-sm font-semibold transition ${isBind ? "bg-white text-slate-950 shadow-sm" : "text-slate-600 active:bg-slate-200"}`}
+        >
+          Gắn kệ
+        </button>
+        <button
+          type="button"
+          onClick={() => props.setBindInvoke("UNBIND")}
+          className={`rounded-md px-3 py-3 text-sm font-semibold transition ${!isBind ? "bg-white text-red-600 shadow-sm" : "text-slate-600 active:bg-slate-200"}`}
+        >
+          Bỏ gắn
+        </button>
+      </div>
+
       <div className="grid gap-3 md:grid-cols-2">
         <CodeInput
           label="Mã kệ"
@@ -1294,7 +1326,7 @@ function QuickBindPanel(props: {
           icon={<Package className="h-5 w-5" />}
         />
         <CodeInput
-          label="Vị trí hiện tại"
+          label="Vị trí"
           value={props.bindSiteCode}
           onChange={props.setBindSiteCode}
           scanTarget="bindSite"
@@ -1304,29 +1336,35 @@ function QuickBindPanel(props: {
         />
       </div>
 
-      <div className="grid gap-3 md:grid-cols-2">
-        <Field label="Góc kệ">
-          <select suppressHydrationWarning value={props.bindDirection} onChange={(event) => props.setBindDirection(event.target.value)} className="field-input">
-            <option value="0">0 độ</option>
-            <option value="90">90 độ</option>
-            <option value="180">180 độ</option>
-            <option value="-90">-90 độ</option>
-            <option value="360">360 độ</option>
-          </select>
-        </Field>
-        <Field label="Loại kệ">
-          <input suppressHydrationWarning value={props.carrierType} onChange={(event) => props.setCarrierType(event.target.value)} className="field-input" />
-        </Field>
-      </div>
+      {isBind && (
+        <div className="grid gap-3 md:grid-cols-2">
+          <Field label="Góc kệ">
+            <select suppressHydrationWarning value={props.bindDirection} onChange={(event) => props.setBindDirection(event.target.value)} className="field-input">
+              <option value="0">0 độ</option>
+              <option value="90">90 độ</option>
+              <option value="180">180 độ</option>
+              <option value="-90">-90 độ</option>
+              <option value="360">360 độ</option>
+            </select>
+          </Field>
+          <Field label="Loại kệ">
+            <input suppressHydrationWarning value={props.carrierType} onChange={(event) => props.setCarrierType(event.target.value)} className="field-input" />
+          </Field>
+        </div>
+      )}
 
       <button
         type="button"
         onClick={props.executeBind}
         disabled={!props.bindCarrierCode.trim() || !props.bindSiteCode.trim() || props.loading}
-        className="primary-button bg-amber-600 hover:bg-amber-500 active:bg-amber-400 disabled:bg-amber-300"
+        className={`primary-button ${
+          isBind
+            ? "bg-amber-600 hover:bg-amber-500 active:bg-amber-400 disabled:bg-amber-300"
+            : "bg-red-600 hover:bg-red-500 active:bg-red-400 disabled:bg-red-300"
+        }`}
       >
-        {props.loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <CheckCircle2 className="h-5 w-5" />}
-        Xác nhận gắn kệ
+        {props.loading ? <Loader2 className="h-5 w-5 animate-spin" /> : isBind ? <CheckCircle2 className="h-5 w-5" /> : <Unlink className="h-5 w-5" />}
+        {isBind ? "Xác nhận gắn kệ" : "Xác nhận bỏ gắn"}
       </button>
     </Panel>
   );
