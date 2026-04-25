@@ -1,36 +1,157 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# RCS Worker Panel
 
-## Getting Started
+Web app mobile-first cho cong nhan nha may goi task robot RCS bang dien thoai:
 
-First, run the development server:
+- Quet QR ma ke, vi tri lay, vi tri dich.
+- Gui task dieu phoi robot.
+- Gan ke vao vi tri hien tai tren RCS.
+- Kiem tra trang thai task bang `robotTaskCode`.
+- Co man hinh API nang cao de gui payload JSON tuy chinh.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Yeu Cau
+
+- Node.js 20.9 tro len.
+- May chay web phai cung mang LAN/Wi-Fi voi may RCS.
+- Dien thoai test QR phai cung mang voi may chay web.
+
+## Clone Project
+
+```powershell
+git clone https://github.com/hieptdbn99/rcs_web_app.git
+cd rcs_web_app
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Cai Dependency
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Neu PowerShell bao loi `npm.ps1 cannot be loaded because running scripts is disabled`, hay dung `npm.cmd`:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```powershell
+npm.cmd install
+```
 
-## Learn More
+Neu PowerShell da cho phep script thi co the dung:
 
-To learn more about Next.js, take a look at the following resources:
+```powershell
+npm install
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Cau Hinh RCS
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Copy file mau:
 
-## Deploy on Vercel
+```powershell
+copy .env.example .env.local
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Mo `.env.local` va sua IP RCS that:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```env
+RCS_HOST=https://IP_MAY_RCS
+APP_KEY=
+APP_SECRET=
+```
+
+Ghi chu:
+
+- Neu RCS co bat ky so/signature, dien `APP_KEY` va `APP_SECRET`.
+- Neu RCS khong dung ky so, de trong `APP_KEY` va `APP_SECRET`.
+- Khong commit `.env.local` len GitHub.
+
+## Chay Tren May Tinh
+
+```powershell
+npm.cmd run dev
+```
+
+Mo trinh duyet:
+
+```text
+http://localhost:3000
+```
+
+## Chay Cho Dien Thoai Quet QR
+
+Camera tren dien thoai thuong can HTTPS khi truy cap qua LAN, nen dung:
+
+```powershell
+npm.cmd run dev:https
+```
+
+Tim IP may dang chay web:
+
+```powershell
+ipconfig
+```
+
+Lay dia chi IPv4 cua card Wi-Fi/LAN, vi du `192.168.1.50`, roi mo tren dien thoai:
+
+```text
+https://192.168.1.50:3000
+```
+
+Neu trinh duyet bao certificate warning do cert tu ky, chon tiep tuc truy cap.
+
+## Kiem Tra Truoc Khi Test
+
+```powershell
+npm.cmd run lint
+npm.cmd run build
+```
+
+## Cac Man Hinh Chinh
+
+- `Chay`: quet QR va gui lenh robot.
+- `Gan ke`: quet QR ma ke va QR vi tri hien tai, sau do bind ke vao point tren RCS.
+- `Ket qua`: query trang thai task bang `robotTaskCode`.
+- `API`: gui payload JSON tuy chinh de test API RCS.
+
+## QR Duoc Ho Tro
+
+QR co the la text don gian:
+
+```text
+RACK_01
+```
+
+Hoac JSON:
+
+```json
+{
+  "carrierCode": "RACK_01"
+}
+```
+
+Hoac URL co query param:
+
+```text
+https://example.local/qr?siteCode=STATION_A
+```
+
+App se tu doc cac field thong dung:
+
+```text
+carrierCode, siteCode, robotTaskCode, code, id, value, text
+```
+
+## Script Hay Dung
+
+```powershell
+npm.cmd run dev        # Chay HTTP local
+npm.cmd run dev:https  # Chay HTTPS cho dien thoai quet QR
+npm.cmd run lint       # Kiem tra lint
+npm.cmd run build      # Build production va tao USB_Deploy
+```
+
+## File Khong Duoc Push
+
+Cac file/folder sau da duoc ignore:
+
+```text
+.env.local
+node_modules/
+.next/
+USB_Deploy/
+certificates/
+*.pdf
+*.log
+```
