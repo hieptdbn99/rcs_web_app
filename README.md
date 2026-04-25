@@ -23,16 +23,16 @@ cd rcs_web_app
 
 ## Cai Dependency
 
-Neu PowerShell bao loi `npm.ps1 cannot be loaded because running scripts is disabled`, hay dung `npm.cmd`:
-
-```powershell
-npm.cmd install
-```
-
-Neu PowerShell da cho phep script thi co the dung:
+Mac dinh dung npm:
 
 ```powershell
 npm install
+```
+
+Neu PowerShell bao loi `npm.ps1 cannot be loaded because running scripts is disabled`, hay dung `npm.cmd` thay cho `npm`:
+
+```powershell
+npm.cmd install
 ```
 
 ## Cau Hinh RCS
@@ -60,7 +60,7 @@ Ghi chu:
 ## Chay Tren May Tinh
 
 ```powershell
-npm.cmd run dev
+npm run dev
 ```
 
 Mo trinh duyet:
@@ -74,7 +74,7 @@ http://localhost:3000
 Camera tren dien thoai thuong can HTTPS khi truy cap qua LAN, nen dung:
 
 ```powershell
-npm.cmd run dev:https
+npm run dev:https
 ```
 
 Tim IP may dang chay web:
@@ -94,8 +94,8 @@ Neu trinh duyet bao certificate warning do cert tu ky, chon tiep tuc truy cap.
 ## Kiem Tra Truoc Khi Test
 
 ```powershell
-npm.cmd run lint
-npm.cmd run build
+npm run lint
+npm run build
 ```
 
 ## Cac Man Hinh Chinh
@@ -136,11 +136,13 @@ carrierCode, siteCode, robotTaskCode, code, id, value, text
 ## Script Hay Dung
 
 ```powershell
-npm.cmd run dev        # Chay HTTP local
-npm.cmd run dev:https  # Chay HTTPS cho dien thoai quet QR
-npm.cmd run lint       # Kiem tra lint
-npm.cmd run build      # Build production va tao USB_Deploy
+npm run dev        # Chay HTTP local
+npm run dev:https  # Chay HTTPS cho dien thoai quet QR
+npm run lint       # Kiem tra lint
+npm run build      # Build production va tao USB_Deploy
 ```
+
+Neu gap loi PowerShell `npm.ps1`, thay `npm` bang `npm.cmd` trong cac lenh tren.
 
 ## File Khong Duoc Push
 
