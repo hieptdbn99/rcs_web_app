@@ -33,9 +33,30 @@ import {
 
 type MainTab = "quick" | RcsApiGroup;
 type MoveMode = "carrier-to-site" | "site-to-site";
-type ScanTarget = "carrier" | "source" | "destination" | "bindCarrier" | "bindSite" | "statusTask";
+type QuickScanTarget = "carrier" | "source" | "destination" | "bindCarrier" | "bindSite" | "statusTask";
+type ApiFieldScanTarget = {
+  kind: "apiField";
+  apiId: string;
+  fieldName: string;
+  label: string;
+};
+type ScanTarget = QuickScanTarget | ApiFieldScanTarget;
 type JsonObject = Record<string, unknown>;
 type ScannerControls = { stop: () => void };
+type ApiFormField = {
+  name: string;
+  label: string;
+  type?: "text" | "number" | "select" | "textarea";
+  placeholder?: string;
+  helper?: string;
+  options?: Array<{ label: string; value: string }>;
+  qr?: boolean;
+  wide?: boolean;
+};
+type ApiFormSchema = {
+  summary: string;
+  fields: ApiFormField[];
+};
 
 type RcsEnvelope = {
   success?: boolean;
@@ -63,7 +84,7 @@ type RecentAction = {
   createdAt: string;
 };
 
-const scanLabels: Record<ScanTarget, string> = {
+const quickScanLabels: Record<QuickScanTarget, string> = {
   carrier: "Quét QR mã kệ",
   source: "Quét QR vị trí lấy",
   destination: "Quét QR vị trí đích",
@@ -72,6 +93,11 @@ const scanLabels: Record<ScanTarget, string> = {
   statusTask: "Quét QR mã task",
 };
 
+function getScanLabel(target: ScanTarget) {
+  if (typeof target === "string") return quickScanLabels[target];
+  return `Quét QR cho ${target.label}`;
+}
+
 const groupIcons: Record<MainTab, React.ReactNode> = {
   quick: <Play className="h-4 w-4" />,
   task: <ClipboardList className="h-4 w-4" />,
@@ -79,6 +105,210 @@ const groupIcons: Record<MainTab, React.ReactNode> = {
   area: <Map className="h-4 w-4" />,
   status: <RotateCw className="h-4 w-4" />,
   integration: <Blocks className="h-4 w-4" />,
+};
+
+const fieldOptions = {
+  targetType: [
+    { label: "Kệ / Carrier", value: "CARRIER" },
+    { label: "Vị trí / Site", value: "SITE" },
+    { label: "Khu vực / Zone", value: "ZONE" },
+    { label: "Ô lưu trữ / Storage", value: "STORAGE" },
+  ],
+  operation: [
+    { label: "Không chọn", value: "" },
+    { label: "Lấy hàng", value: "COLLECT" },
+    { label: "Giao hàng", value: "DELIVERY" },
+    { label: "Xoay", value: "ROTATE" },
+  ],
+  yesNo: [
+    { label: "Có", value: "YES" },
+    { label: "Không", value: "NO" },
+  ],
+};
+
+const API_FORM_SCHEMAS: Record<string, ApiFormSchema> = {
+  "task-group": {
+    summary: "Dùng khi cần gom nhiều task vào cùng một nhóm chạy theo thứ tự.",
+    fields: [
+      { name: "groupCode", label: "Mã nhóm task", qr: true },
+      { name: "strategy", label: "Chiến lược", type: "select", options: [{ label: "Chạy theo thứ tự nhóm", value: "GROUP_SEQ" }, { label: "Phân bổ theo nhóm", value: "GROUP_ASSIGN" }] },
+      { name: "strategyValue", label: "Giá trị chiến lược", type: "select", options: [{ label: "Ordered within and between groups", value: "1" }, { label: "Unordered between groups", value: "0" }, { label: "Ordered between groups", value: "2" }, { label: "Ordered within groups", value: "3" }] },
+      { name: "groupSeq", label: "Thứ tự nhóm", type: "number" },
+      { name: "targetType", label: "Loại điểm điều phối", type: "select", options: fieldOptions.targetType },
+      { name: "targetCode", label: "Mã điểm điều phối", qr: true },
+      { name: "robotTaskCode", label: "Mã task ngoài", qr: true },
+      { name: "sequence", label: "Thứ tự task", type: "number" },
+    ],
+  },
+  "task-submit": {
+    summary: "Tạo task robot. Người vận hành thường chỉ cần chọn loại điểm và nhập/quét mã.",
+    fields: [
+      { name: "taskType", label: "Loại task", placeholder: "PF-LMR-COMMON" },
+      { name: "startType", label: "Loại điểm lấy", type: "select", options: fieldOptions.targetType },
+      { name: "startCode", label: "Mã điểm lấy / mã kệ", qr: true },
+      { name: "destType", label: "Loại điểm đích", type: "select", options: fieldOptions.targetType },
+      { name: "destCode", label: "Mã điểm đích", qr: true },
+      { name: "destOperation", label: "Hành động tại đích", type: "select", options: fieldOptions.operation },
+      { name: "initPriority", label: "Ưu tiên", type: "number" },
+      { name: "interrupt", label: "Cho phép ngắt task", type: "select", options: [{ label: "Không", value: "0" }, { label: "Có", value: "1" }] },
+      { name: "carrierType", label: "Loại kệ", helper: "Chỉ cần khi task yêu cầu carrierInfo." },
+    ],
+  },
+  "task-continue": {
+    summary: "Cho task nhiều bước chạy tiếp bước kế tiếp.",
+    fields: [
+      { name: "robotTaskCode", label: "Mã task", qr: true },
+      { name: "triggerType", label: "Loại trigger", type: "select", options: [{ label: "Theo task", value: "TASK" }, { label: "Theo vị trí", value: "SITE" }, { label: "Theo kệ", value: "CARRIER" }, { label: "Theo robot", value: "ROBOT" }] },
+      { name: "triggerCode", label: "Mã trigger", qr: true },
+      { name: "nextSeq", label: "Seq tiếp theo", type: "number" },
+      { name: "targetType", label: "Loại điểm tiếp theo", type: "select", options: fieldOptions.targetType },
+      { name: "targetCode", label: "Mã điểm tiếp theo", qr: true },
+      { name: "autoStart", label: "Tự chạy bước này", type: "select", options: [{ label: "Có", value: "1" }, { label: "Không", value: "0" }] },
+      { name: "operation", label: "Hành động", type: "select", options: fieldOptions.operation },
+    ],
+  },
+  "task-cancel": {
+    summary: "Hủy task. Chỉ dùng khi chắc chắn task cần dừng.",
+    fields: [
+      { name: "robotTaskCode", label: "Mã task cần hủy", qr: true },
+      { name: "cancelType", label: "Kiểu hủy", type: "select", options: [{ label: "Hủy mềm", value: "CANCEL" }, { label: "Can thiệp thủ công", value: "DROP" }] },
+      { name: "carrierCode", label: "Mã kệ liên quan", qr: true },
+      { name: "reason", label: "Lý do hủy", wide: true },
+    ],
+  },
+  "task-priority": {
+    summary: "Đổi độ ưu tiên task trước khi task kết thúc.",
+    fields: [
+      { name: "robotTaskCode", label: "Mã task", qr: true },
+      { name: "initPriority", label: "Ưu tiên mới", type: "number", helper: "1 đến 120, số lớn ưu tiên cao hơn." },
+      { name: "deadline", label: "Deadline", placeholder: "2026-04-25T12:30:00Z", wide: true },
+    ],
+  },
+  "task-pretask": {
+    summary: "Gọi robot tới trước một vị trí để chuẩn bị task sắp phát sinh.",
+    fields: [
+      { name: "siteCode", label: "Mã vị trí", qr: true },
+      { name: "nextTaskTime", label: "Thời gian dự kiến tạo task (giây)", type: "number" },
+      { name: "robotType", label: "Loại robot" },
+      { name: "priority", label: "Ưu tiên", type: "number" },
+      { name: "taskCount", label: "Số task dự kiến", type: "number" },
+      { name: "capacityCount", label: "Số ô trống tối thiểu", type: "number" },
+      { name: "amrDir", label: "Hướng robot", type: "select", options: [{ label: "Không chỉ định", value: "999" }, { label: "0 độ", value: "0" }, { label: "90 độ", value: "90" }, { label: "180 độ", value: "180" }, { label: "-90 độ", value: "-90" }] },
+    ],
+  },
+  "custom-normal": {
+    summary: "API tùy chỉnh cho CHECK hoặc FULL_NOTIFY. Chỉ dùng khi kỹ thuật đã thống nhất payload.",
+    fields: [
+      { name: "taskCode", label: "Mã task", qr: true },
+      { name: "notifyType", label: "Loại thông báo", type: "select", options: [{ label: "Kiểm tra cho phép vào", value: "CHECK" }, { label: "Báo đã đầy", value: "FULL_NOTIFY" }] },
+      { name: "carrierCode", label: "Mã kệ", qr: true },
+      { name: "carrierType", label: "Loại kệ" },
+      { name: "layer", label: "Tầng", type: "number" },
+      { name: "siteInfo", label: "Danh sách điểm", placeholder: "SITE_A,SITE_B", wide: true },
+      { name: "result", label: "Kết quả CHECK", type: "select", options: [{ label: "Cho phép", value: "1" }, { label: "Không cho phép", value: "0" }] },
+    ],
+  },
+  "carrier-bind": {
+    summary: "Gắn carrier/kệ vào point.",
+    fields: [
+      { name: "carrierCode", label: "Mã kệ", qr: true },
+      { name: "siteCode", label: "Mã vị trí", qr: true },
+      { name: "carrierDir", label: "Góc kệ", type: "select", options: [{ label: "0 độ", value: "0" }, { label: "90 độ", value: "90" }, { label: "180 độ", value: "180" }, { label: "-90 độ", value: "-90" }, { label: "360 độ", value: "360" }] },
+    ],
+  },
+  "carrier-unbind": {
+    summary: "Bỏ liên kết carrier/kệ khỏi point.",
+    fields: [
+      { name: "carrierCode", label: "Mã kệ", qr: true },
+      { name: "siteCode", label: "Mã vị trí", qr: true },
+    ],
+  },
+  "site-bind": {
+    summary: "Gắn hoặc bỏ gắn storage object/point với carrier. Đây là luồng gắn kệ chính.",
+    fields: [
+      { name: "invoke", label: "Thao tác", type: "select", options: [{ label: "Gắn", value: "BIND" }, { label: "Bỏ gắn", value: "UNBIND" }] },
+      { name: "slotCategory", label: "Loại vị trí", type: "select", options: [{ label: "Point/Site", value: "SITE" }, { label: "Bin", value: "BIN" }] },
+      { name: "slotCode", label: "Mã vị trí", qr: true },
+      { name: "carrierCategory", label: "Loại carrier", type: "select", options: [{ label: "Rack/POD", value: "POD" }, { label: "Pallet", value: "PALLET" }, { label: "Box", value: "BOX" }, { label: "Material", value: "MAT" }] },
+      { name: "carrierType", label: "Kiểu kệ" },
+      { name: "carrierCode", label: "Mã kệ", qr: true },
+      { name: "carrierDir", label: "Góc kệ", type: "select", options: [{ label: "0 độ", value: "0" }, { label: "90 độ", value: "90" }, { label: "180 độ", value: "180" }, { label: "-90 độ", value: "-90" }, { label: "360 độ", value: "360" }] },
+      { name: "temporary", label: "Kệ tạm", type: "select", options: [{ label: "Không", value: "0" }, { label: "Có", value: "1" }] },
+    ],
+  },
+  "carrier-lock": {
+    summary: "Khóa hoặc mở khóa kệ/carrier.",
+    fields: [
+      { name: "carrierCode", label: "Mã kệ", qr: true },
+      { name: "invoke", label: "Thao tác", type: "select", options: [{ label: "Khóa", value: "LOCK" }, { label: "Mở khóa", value: "UNLOCK" }] },
+    ],
+  },
+  "site-lock": {
+    summary: "Khóa hoặc mở khóa point/vị trí.",
+    fields: [
+      { name: "siteCode", label: "Mã vị trí", qr: true },
+      { name: "invoke", label: "Thao tác", type: "select", options: [{ label: "Khóa", value: "LOCK" }, { label: "Mở khóa", value: "UNLOCK" }] },
+    ],
+  },
+  "zone-pause": {
+    summary: "Dừng hoặc khôi phục robot trong một khu vực.",
+    fields: [
+      { name: "zoneCode", label: "Mã khu vực", qr: true },
+      { name: "mapCode", label: "Mã bản đồ" },
+      { name: "invoke", label: "Thao tác", type: "select", options: [{ label: "Dừng", value: "FREEZE" }, { label: "Chạy lại", value: "RUN" }] },
+    ],
+  },
+  "zone-homing": {
+    summary: "Đưa robot trong khu vực về bãi/khu vực cố định.",
+    fields: [
+      { name: "zoneCode", label: "Mã khu vực", qr: true },
+      { name: "autoShutdown", label: "Tắt nguồn sau khi về", type: "select", options: fieldOptions.yesNo },
+      { name: "bootTime", label: "Thời gian bật lại", placeholder: "2026-04-25T08:00:00+07:00" },
+      { name: "expireTime", label: "Thời gian timeout", placeholder: "2026-04-25T12:30:00Z" },
+    ],
+  },
+  "zone-banish": {
+    summary: "Clear area: đưa robot ra khỏi khu vực hoặc khôi phục khu vực.",
+    fields: [
+      { name: "zoneCode", label: "Mã khu vực", qr: true },
+      { name: "invoke", label: "Thao tác", type: "select", options: [{ label: "Clear area", value: "BANISH" }, { label: "Khôi phục", value: "RUN" }] },
+      { name: "pause", label: "Dừng robot sau khi clear", type: "select", options: [{ label: "Không", value: "0" }, { label: "Có", value: "1" }] },
+      { name: "controlMode", label: "Cách clear", type: "select", options: [{ label: "Đi ra khỏi vùng", value: "0" }, { label: "Đi đến điểm đỗ tạm", value: "1" }, { label: "Đi đến vùng chỉ định", value: "2" }] },
+      { name: "targetZoneCode", label: "Vùng đích", qr: true },
+      { name: "expireTime", label: "Thời gian timeout", placeholder: "2026-04-25T12:30:00Z" },
+    ],
+  },
+  "zone-blockade": {
+    summary: "Chặn hoặc mở một khu vực để robot bên ngoài không đi vào.",
+    fields: [
+      { name: "zoneCode", label: "Mã khu vực", qr: true },
+      { name: "mapCode", label: "Mã bản đồ" },
+      { name: "invoke", label: "Thao tác", type: "select", options: [{ label: "Chặn khu vực", value: "BLOCKADE" }, { label: "Mở khu vực", value: "OPENUP" }] },
+    ],
+  },
+  "task-query": {
+    summary: "Tra cứu trạng thái task.",
+    fields: [{ name: "robotTaskCode", label: "Mã task", qr: true }],
+  },
+  "robot-query": {
+    summary: "Tra cứu trạng thái robot.",
+    fields: [{ name: "singleRobotCode", label: "Mã robot", qr: true }],
+  },
+  "carrier-query": {
+    summary: "Tra cứu trạng thái kệ/carrier.",
+    fields: [{ name: "carrierCode", label: "Mã kệ", qr: true }],
+  },
+  "eqpt-notify": {
+    summary: "Báo RCS rằng thiết bị bên thứ ba đã thực hiện xong một bước.",
+    fields: [
+      { name: "eqptCode", label: "Mã thiết bị", qr: true },
+      { name: "taskCode", label: "Mã task", qr: true },
+      { name: "actionStatus", label: "Trạng thái thực hiện", type: "select", options: [{ label: "Cửa mở đúng vị trí", value: "1" }, { label: "Cửa đóng đúng vị trí", value: "2" }, { label: "Thang máy mở cửa", value: "3" }, { label: "Hàng tới tầng đích", value: "4" }, { label: "Lấy hàng", value: "5" }, { label: "Đặt hàng", value: "6" }, { label: "Đã tới", value: "7" }] },
+      { name: "siteCode", label: "Mã vị trí", qr: true },
+      { name: "carrierCode", label: "Mã kệ", qr: true },
+      { name: "carrierType", label: "Loại kệ" },
+    ],
+  },
 };
 
 function getErrorMessage(error: unknown) {
@@ -163,10 +393,283 @@ function riskLabel(risk: RcsRisk) {
   return "An toàn";
 }
 
+function readPath(source: unknown, path: string): unknown {
+  return path.split(".").reduce<unknown>((current, segment) => {
+    if (!current || typeof current !== "object" || Array.isArray(current)) return undefined;
+    return (current as Record<string, unknown>)[segment];
+  }, source);
+}
+
+function valueToString(value: unknown) {
+  if (value === undefined || value === null) return "";
+  if (Array.isArray(value)) return value.join(",");
+  if (typeof value === "object") return "";
+  return String(value);
+}
+
+function getDefaultFieldValue(api: RcsApiDefinition, field: ApiFormField) {
+  const payload = api.defaultPayload;
+  const directValue = payload[field.name];
+  if (directValue !== undefined) return valueToString(directValue);
+
+  const mappedDefaults: Record<string, Record<string, string>> = {
+    "task-submit": {
+      startType: "CARRIER",
+      startCode: valueToString(readPath(payload, "targetRoute.0.code")),
+      destType: "SITE",
+      destCode: valueToString(readPath(payload, "targetRoute.1.code")),
+      destOperation: valueToString(readPath(payload, "targetRoute.1.operation")),
+      carrierType: "",
+    },
+    "task-continue": {
+      nextSeq: valueToString(readPath(payload, "targetRoute.seq")),
+      targetType: valueToString(readPath(payload, "targetRoute.type")),
+      targetCode: valueToString(readPath(payload, "targetRoute.code")),
+      autoStart: valueToString(readPath(payload, "targetRoute.autoStart")),
+      operation: valueToString(readPath(payload, "targetRoute.operation")),
+    },
+    "task-group": {
+      targetType: valueToString(readPath(payload, "targetRoute.type")),
+      targetCode: valueToString(readPath(payload, "targetRoute.code")),
+      robotTaskCode: valueToString(readPath(payload, "data.0.robotTaskCode")),
+      sequence: valueToString(readPath(payload, "data.0.sequence")),
+    },
+    "custom-normal": {
+      siteInfo: "STATION_A",
+      result: "1",
+    },
+  };
+
+  return mappedDefaults[api.id]?.[field.name] ?? "";
+}
+
+function getFieldValue(api: RcsApiDefinition, values: Record<string, string>, field: ApiFormField) {
+  return values[field.name] ?? getDefaultFieldValue(api, field);
+}
+
+function numberOrUndefined(value: string) {
+  if (!value.trim()) return undefined;
+  const numberValue = Number(value);
+  return Number.isNaN(numberValue) ? undefined : numberValue;
+}
+
+function optionalString(value: string) {
+  const trimmed = value.trim();
+  return trimmed ? trimmed : undefined;
+}
+
+function compactObject<T extends Record<string, unknown>>(value: T): T {
+  return Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== undefined && entry !== "")) as T;
+}
+
+function splitList(value: string) {
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function buildPayloadFromForm(api: RcsApiDefinition, values: Record<string, string>) {
+  const get = (name: string) => values[name] ?? "";
+
+  switch (api.id) {
+    case "task-group":
+      return compactObject({
+        groupCode: get("groupCode"),
+        strategy: get("strategy"),
+        strategyValue: get("strategyValue"),
+        groupSeq: numberOrUndefined(get("groupSeq")),
+        targetRoute: compactObject({
+          type: get("targetType"),
+          code: get("targetCode"),
+        }),
+        data: [
+          compactObject({
+            robotTaskCode: get("robotTaskCode"),
+            sequence: numberOrUndefined(get("sequence")),
+          }),
+        ],
+      });
+    case "task-submit": {
+      const carrierType = optionalString(get("carrierType"));
+      return compactObject({
+        taskType: get("taskType"),
+        targetRoute: [
+          compactObject({
+            seq: 0,
+            type: get("startType"),
+            code: get("startCode"),
+            operation: get("startType") === "SITE" ? "COLLECT" : undefined,
+          }),
+          compactObject({
+            seq: 1,
+            type: get("destType"),
+            code: get("destCode"),
+            operation: optionalString(get("destOperation")),
+          }),
+        ],
+        initPriority: numberOrUndefined(get("initPriority")),
+        interrupt: numberOrUndefined(get("interrupt")),
+        extra: carrierType ? { carrierInfo: [{ carrierType }] } : null,
+      });
+    }
+    case "task-continue":
+      return compactObject({
+        robotTaskCode: get("robotTaskCode"),
+        triggerType: get("triggerType"),
+        triggerCode: get("triggerCode"),
+        targetRoute: compactObject({
+          seq: numberOrUndefined(get("nextSeq")),
+          type: get("targetType"),
+          code: get("targetCode"),
+          autoStart: numberOrUndefined(get("autoStart")),
+          operation: optionalString(get("operation")),
+        }),
+        extra: null,
+      });
+    case "task-cancel":
+      return compactObject({
+        robotTaskCode: get("robotTaskCode"),
+        cancelType: get("cancelType"),
+        carrierCode: optionalString(get("carrierCode")),
+        reason: optionalString(get("reason")),
+        extra: null,
+      });
+    case "task-priority":
+      return compactObject({
+        robotTaskCode: get("robotTaskCode"),
+        initPriority: numberOrUndefined(get("initPriority")),
+        deadline: optionalString(get("deadline")),
+        extra: null,
+      });
+    case "task-pretask":
+      return compactObject({
+        siteCode: get("siteCode"),
+        nextTaskTime: get("nextTaskTime"),
+        robotType: optionalString(get("robotType")),
+        priority: numberOrUndefined(get("priority")),
+        taskCount: numberOrUndefined(get("taskCount")),
+        capacityCount: numberOrUndefined(get("capacityCount")),
+        amrDir: optionalString(get("amrDir")),
+        extra: null,
+      });
+    case "custom-normal": {
+      const siteInfo = splitList(get("siteInfo"));
+      const carrierCode = optionalString(get("carrierCode"));
+      return compactObject({
+        taskCode: get("taskCode"),
+        notifyType: get("notifyType"),
+        extra: compactObject({
+          siteInfo: siteInfo.length ? siteInfo : undefined,
+          result: optionalString(get("result")),
+          carrierInfo: carrierCode
+            ? [
+                compactObject({
+                  carrierType: get("carrierType"),
+                  carrierCode,
+                  layer: get("layer"),
+                }),
+              ]
+            : undefined,
+        }),
+      });
+    }
+    case "carrier-bind":
+      return compactObject({
+        carrierCode: get("carrierCode"),
+        siteCode: get("siteCode"),
+        carrierDir: numberOrUndefined(get("carrierDir")),
+        extra: null,
+      });
+    case "carrier-unbind":
+      return compactObject({
+        carrierCode: get("carrierCode"),
+        siteCode: get("siteCode"),
+        extra: null,
+      });
+    case "site-bind":
+      return compactObject({
+        slotCategory: get("slotCategory"),
+        slotCode: get("slotCode"),
+        carrierCategory: get("carrierCategory"),
+        carrierType: optionalString(get("carrierType")),
+        carrierCode: optionalString(get("carrierCode")),
+        carrierDir: numberOrUndefined(get("carrierDir")),
+        temporary: numberOrUndefined(get("temporary")),
+        invoke: get("invoke"),
+        extra: null,
+      });
+    case "carrier-lock":
+      return compactObject({
+        carrierCode: get("carrierCode"),
+        invoke: get("invoke"),
+        extra: null,
+      });
+    case "site-lock":
+      return compactObject({
+        siteCode: get("siteCode"),
+        invoke: get("invoke"),
+        extra: null,
+      });
+    case "zone-pause":
+      return compactObject({
+        zoneCode: get("zoneCode"),
+        mapCode: optionalString(get("mapCode")),
+        invoke: get("invoke"),
+        extra: null,
+      });
+    case "zone-homing":
+      return compactObject({
+        zoneCode: get("zoneCode"),
+        autoShutdown: get("autoShutdown"),
+        bootTime: optionalString(get("bootTime")),
+        expireTime: optionalString(get("expireTime")),
+        extra: null,
+      });
+    case "zone-banish":
+      return compactObject({
+        zoneCode: get("zoneCode"),
+        invoke: get("invoke"),
+        pause: optionalString(get("pause")),
+        controlMode: optionalString(get("controlMode")),
+        targetZoneCode: optionalString(get("targetZoneCode")),
+        expireTime: optionalString(get("expireTime")),
+        extra: null,
+      });
+    case "zone-blockade":
+      return compactObject({
+        zoneCode: get("zoneCode"),
+        mapCode: optionalString(get("mapCode")),
+        invoke: get("invoke"),
+        extra: null,
+      });
+    case "task-query":
+      return { robotTaskCode: get("robotTaskCode") };
+    case "robot-query":
+      return { singleRobotCode: get("singleRobotCode") };
+    case "carrier-query":
+      return { carrierCode: get("carrierCode") };
+    case "eqpt-notify": {
+      const carrierCode = optionalString(get("carrierCode"));
+      return compactObject({
+        eqptCode: get("eqptCode"),
+        taskCode: get("taskCode"),
+        actionStatus: get("actionStatus"),
+        siteCode: get("siteCode"),
+        carrierInfo: carrierCode ? [compactObject({ carrierCode, carrierType: get("carrierType") })] : undefined,
+        extra: null,
+      });
+    }
+    default:
+      return api.defaultPayload;
+  }
+}
+
 export default function Home() {
   const [activeTab, setActiveTab] = useState<MainTab>("quick");
   const [selectedByGroup, setSelectedByGroup] = useState<Partial<Record<RcsApiGroup, string>>>({});
   const [payloadTexts, setPayloadTexts] = useState<Record<string, string>>({});
+  const [apiFormValues, setApiFormValues] = useState<Record<string, Record<string, string>>>({});
   const [moveMode, setMoveMode] = useState<MoveMode>("carrier-to-site");
   const [carrierCode, setCarrierCode] = useState("");
   const [sourceCode, setSourceCode] = useState("");
@@ -211,6 +714,17 @@ export default function Home() {
   }, []);
 
   const applyScanValue = useCallback((target: ScanTarget, value: string) => {
+    if (typeof target !== "string") {
+      setApiFormValues((current) => ({
+        ...current,
+        [target.apiId]: {
+          ...(current[target.apiId] ?? {}),
+          [target.fieldName]: value,
+        },
+      }));
+      return;
+    }
+
     if (target === "carrier") setCarrierCode(value);
     if (target === "source") setSourceCode(value);
     if (target === "destination") setDestinationCode(value);
@@ -407,17 +921,9 @@ export default function Home() {
     }
   };
 
-  const executeCatalogApi = async (api: RcsApiDefinition) => {
+  const executeCatalogApi = async (api: RcsApiDefinition, payload: JsonObject) => {
     if (api.direction === "callback") {
       toast("Đây là callback để RCS gọi vào web, không phải API gọi sang RCS.", { icon: "i" });
-      return;
-    }
-
-    let payload: JsonObject;
-    try {
-      payload = parseJsonObject(payloadTexts[api.id] ?? formatJson(api.defaultPayload));
-    } catch (error: unknown) {
-      toast.error(getErrorMessage(error));
       return;
     }
 
@@ -545,6 +1051,9 @@ export default function Home() {
               setSelectedByGroup={setSelectedByGroup}
               payloadTexts={payloadTexts}
               setPayloadTexts={setPayloadTexts}
+              apiFormValues={apiFormValues}
+              setApiFormValues={setApiFormValues}
+              startScan={setScanTarget}
               loadingAction={loadingAction}
               executeCatalogApi={executeCatalogApi}
               lastResult={lastResult}
@@ -558,7 +1067,7 @@ export default function Home() {
           <div className="w-full rounded-t-2xl bg-white p-4 shadow-2xl md:max-w-lg md:rounded-2xl">
             <div className="mb-3 flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-semibold">{scanLabels[scanTarget]}</h2>
+                <h2 className="text-lg font-semibold">{getScanLabel(scanTarget)}</h2>
                 <p className="text-sm text-slate-500">Đưa QR vào giữa khung camera.</p>
               </div>
               <button onClick={stopScanner} className="icon-button" aria-label="Đóng quét QR">
@@ -851,6 +1360,9 @@ function ApiConsole({
   setSelectedByGroup,
   payloadTexts,
   setPayloadTexts,
+  apiFormValues,
+  setApiFormValues,
+  startScan,
   loadingAction,
   executeCatalogApi,
   lastResult,
@@ -860,8 +1372,11 @@ function ApiConsole({
   setSelectedByGroup: React.Dispatch<React.SetStateAction<Partial<Record<RcsApiGroup, string>>>>;
   payloadTexts: Record<string, string>;
   setPayloadTexts: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  apiFormValues: Record<string, Record<string, string>>;
+  setApiFormValues: React.Dispatch<React.SetStateAction<Record<string, Record<string, string>>>>;
+  startScan: (target: ScanTarget) => void;
   loadingAction: string | null;
-  executeCatalogApi: (api: RcsApiDefinition) => void;
+  executeCatalogApi: (api: RcsApiDefinition, payload: JsonObject) => void;
   lastResult: RcsEnvelope | null;
 }) {
   const apis = getRcsApisByGroup(group);
@@ -871,6 +1386,27 @@ function ApiConsole({
   if (!selectedApi) return null;
 
   const payloadText = payloadTexts[selectedApi.id] ?? formatJson(selectedApi.defaultPayload);
+  const schema = API_FORM_SCHEMAS[selectedApi.id];
+  const formValues = apiFormValues[selectedApi.id] ?? {};
+  const formPayload = schema ? buildPayloadFromForm(selectedApi, Object.fromEntries(schema.fields.map((field) => [field.name, getFieldValue(selectedApi, formValues, field)]))) : selectedApi.defaultPayload;
+
+  const updateFormValue = (fieldName: string, value: string) => {
+    setApiFormValues((current) => ({
+      ...current,
+      [selectedApi.id]: {
+        ...(current[selectedApi.id] ?? {}),
+        [fieldName]: value,
+      },
+    }));
+  };
+
+  const callUsingJson = () => {
+    try {
+      executeCatalogApi(selectedApi, parseJsonObject(payloadText));
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error));
+    }
+  };
 
   return (
     <section className="grid gap-5 lg:grid-cols-[360px_1fr]">
@@ -933,28 +1469,65 @@ function ApiConsole({
               </Field>
             </div>
           ) : (
-            <div className="space-y-3">
-              <Field label="Payload JSON">
-                <textarea
-                  value={payloadText}
-                  onChange={(event) => setPayloadTexts((current) => ({ ...current, [selectedApi.id]: event.target.value }))}
-                  rows={16}
-                  spellCheck={false}
-                  className="field-input min-h-96 resize-y font-mono text-sm"
-                />
-              </Field>
-              <div className="grid gap-2 md:grid-cols-[1fr_auto]">
-                <button onClick={() => executeCatalogApi(selectedApi)} disabled={loadingAction === selectedApi.id} className="primary-button">
-                  {loadingAction === selectedApi.id ? <Loader2 className="h-5 w-5 animate-spin" /> : <Play className="h-5 w-5" />}
-                  Gọi API này
-                </button>
-                <button
-                  onClick={() => setPayloadTexts((current) => ({ ...current, [selectedApi.id]: formatJson(selectedApi.defaultPayload) }))}
-                  className="secondary-button md:w-auto"
-                >
-                  Reset mẫu JSON
-                </button>
-              </div>
+            <div className="space-y-4">
+              {schema ? (
+                <>
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+                    {schema.summary}
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    {schema.fields.map((field) => (
+                      <ApiFieldInput
+                        key={field.name}
+                        apiId={selectedApi.id}
+                        field={field}
+                        value={getFieldValue(selectedApi, formValues, field)}
+                        onChange={(value) => updateFormValue(field.name, value)}
+                        startScan={startScan}
+                      />
+                    ))}
+                  </div>
+                  <div className="rounded-lg border border-slate-200 bg-white p-3">
+                    <p className="mb-2 text-sm font-semibold text-slate-700">Dữ liệu sẽ gửi sang RCS</p>
+                    <pre className="max-h-72 overflow-auto rounded-lg bg-slate-950 p-3 text-xs text-slate-100">{formatJson(formPayload)}</pre>
+                  </div>
+                  <button onClick={() => executeCatalogApi(selectedApi, formPayload)} disabled={loadingAction === selectedApi.id} className="primary-button">
+                    {loadingAction === selectedApi.id ? <Loader2 className="h-5 w-5 animate-spin" /> : <Play className="h-5 w-5" />}
+                    Gửi lệnh bằng form
+                  </button>
+                </>
+              ) : (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                  API này chưa có form riêng, kỹ thuật có thể dùng JSON nâng cao bên dưới.
+                </div>
+              )}
+
+              <details className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <summary className="cursor-pointer text-sm font-semibold text-slate-700">JSON nâng cao cho kỹ thuật</summary>
+                <div className="mt-3 space-y-3">
+                  <Field label="Payload JSON">
+                    <textarea
+                      value={payloadText}
+                      onChange={(event) => setPayloadTexts((current) => ({ ...current, [selectedApi.id]: event.target.value }))}
+                      rows={12}
+                      spellCheck={false}
+                      className="field-input min-h-72 resize-y font-mono text-sm"
+                    />
+                  </Field>
+                  <div className="grid gap-2 md:grid-cols-[1fr_auto]">
+                    <button onClick={callUsingJson} disabled={loadingAction === selectedApi.id} className="secondary-button">
+                      {loadingAction === selectedApi.id ? <Loader2 className="h-5 w-5 animate-spin" /> : <Settings2 className="h-5 w-5" />}
+                      Gửi bằng JSON nâng cao
+                    </button>
+                    <button
+                      onClick={() => setPayloadTexts((current) => ({ ...current, [selectedApi.id]: formatJson(selectedApi.defaultPayload) }))}
+                      className="secondary-button md:w-auto"
+                    >
+                      Reset JSON mẫu
+                    </button>
+                  </div>
+                </div>
+              </details>
             </div>
           )}
         </Panel>
@@ -962,6 +1535,55 @@ function ApiConsole({
         <ResultPanel result={lastResult} />
       </div>
     </section>
+  );
+}
+
+function ApiFieldInput({
+  apiId,
+  field,
+  value,
+  onChange,
+  startScan,
+}: {
+  apiId: string;
+  field: ApiFormField;
+  value: string;
+  onChange: (value: string) => void;
+  startScan: (target: ScanTarget) => void;
+}) {
+  const input =
+    field.type === "select" ? (
+      <select value={value} onChange={(event) => onChange(event.target.value)} className="field-input">
+        {(field.options ?? []).map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    ) : field.type === "textarea" ? (
+      <textarea value={value} onChange={(event) => onChange(event.target.value)} rows={4} className="field-input resize-y" placeholder={field.placeholder} />
+    ) : (
+      <input value={value} onChange={(event) => onChange(event.target.value)} type={field.type === "number" ? "number" : "text"} className="field-input" placeholder={field.placeholder} />
+    );
+
+  return (
+    <div className={field.wide ? "md:col-span-2" : ""}>
+      <Field label={field.label}>
+        <div className="flex gap-2">
+          <div className="flex-1">{input}</div>
+          {field.qr && (
+            <button
+              onClick={() => startScan({ kind: "apiField", apiId, fieldName: field.name, label: field.label })}
+              className="icon-button h-12 w-12 shrink-0 bg-slate-950 text-white hover:bg-slate-800"
+              aria-label={`Quét ${field.label}`}
+            >
+              <QrCode className="h-5 w-5" />
+            </button>
+          )}
+        </div>
+        {field.helper && <span className="mt-1 block text-xs text-slate-500">{field.helper}</span>}
+      </Field>
+    </div>
   );
 }
 
