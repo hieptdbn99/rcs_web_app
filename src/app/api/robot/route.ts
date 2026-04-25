@@ -5,6 +5,10 @@ import { v4 as uuidv4 } from 'uuid';
 // Bỏ qua lỗi chứng chỉ SSL tự cấp của Hikrobot RCS
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : 'Unknown error';
+}
+
 function generateSignature(
   appKey: string,
   appSecret: string,
@@ -120,8 +124,8 @@ export async function POST(request: Request) {
       rcsResponse: responseData
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('RCS API Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
   }
 }

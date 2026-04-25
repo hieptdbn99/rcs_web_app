@@ -2,8 +2,12 @@ import os
 import shutil
 import urllib.request
 import subprocess
+import sys
 
 def main():
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+
     print("Bắt đầu đóng gói dự án ra USB (Post-build)...")
     
     # 2. Chuẩn bị thư mục USB_Deploy

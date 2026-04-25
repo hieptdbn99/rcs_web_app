@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 
-// Bỏ qua lỗi chứng chỉ SSL tự cấp của Hikrobot RCS
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 function getErrorMessage(error: unknown) {
@@ -20,7 +19,7 @@ function generateSignature(
 ) {
   const requestId = uuidv4().replace(/-/g, '').substring(0, 16);
   const authHeader = `nonce="${nonce}",method="HMAC-SHA256",timestamp="${timestamp}"`;
-  const version = "v1.0";
+  const version = 'v1.0';
 
   const originalString = `POST ${path} HTTP/1.1\n` +
     `AUTHORIZATION: ${authHeader}\n` +
@@ -31,12 +30,10 @@ function generateSignature(
     `X-LR-VERSION: ${version}\n\n` +
     `${body}`;
 
-  // 1. HMAC-SHA256
   const hmac = crypto.createHmac('sha256', appSecret);
   hmac.update(originalString, 'utf8');
   const hmacHex = hmac.digest('hex');
 
-  // 2. MD5 and extract middle 16 characters
   const md5 = crypto.createHash('md5');
   md5.update(hmacHex, 'utf8');
   const md5Hex = md5.digest('hex');
@@ -55,44 +52,26 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing RCS_HOST environment variable' }, { status: 500 });
     }
 
-    const { carrierCode, siteCode, carrierDir, carrierType, invoke } = await request.json();
-    
-    // RCS-2000 guide: Linking/Unlinking Storage Object to/from Carrier API.
-    const payload = {
-      slotCategory: 'SITE',
-      slotCode: siteCode,
-      carrierCategory: 'POD',
-      carrierType: carrierType || undefined,
-      carrierCode,
-      carrierDir: parseInt(carrierDir) || 0,
-      invoke: invoke || 'BIND',
-      extra: null,
-    };
-    
+    const { robotTaskCode } = await request.json();
+    const payload = { robotTaskCode };
     const bodyString = JSON.stringify(payload);
-    
-    // Parse host
+
     const hostUrl = new URL(rcsHost);
     const hostHeader = hostUrl.host;
-    const path = '/api/robot/controller/site/bind';
-    
-    // Prepare Headers
+    const path = '/api/robot/controller/task/query';
     const headers: Record<string, string> = {
       'Host': hostHeader,
       'Content-Type': 'application/json;charset=UTF-8',
       'X-lr-request-id': uuidv4().replace(/-/g, '').substring(0, 16),
       'X-lr-source': 'wms',
-      'X-lr-version': 'v1.0'
+      'X-lr-version': 'v1.0',
     };
 
     let rcsUrl = `${rcsHost.replace(/\/+$/, '')}/rcs/rtas${path}`;
 
-    // NẾU CÓ APP_KEY VÀ APP_SECRET THÌ MỚI BẬT CHẾ ĐỘ MÃ HÓA BẢO MẬT
     if (appKey && appSecret) {
-      const date = new Date();
-      const timestamp = date.toISOString().replace(/\.\d{3}Z$/, '+00:00');
-      const nonce = Math.random().toString(36).substring(2, 9);
-      
+      const timestamp = new Date().toISOString().replace(/\.\d{3}Z$/, '+00:00');
+      const nonce = Math.random().toString(36).substring(2, 10);
       const { signature, requestId, authHeader, version } = generateSignature(
         appKey,
         appSecret,
@@ -103,34 +82,28 @@ export async function POST(request: Request) {
         bodyString
       );
 
-      // Add signature to URL
       rcsUrl = `${rcsUrl}?sign=${signature}`;
-      
-      // Add secure headers
       headers['Authorization'] = authHeader;
       headers['X-lr-appkey'] = appKey;
-      headers['X-lr-request-id'] = requestId; // Use the one used in signature
+      headers['X-lr-request-id'] = requestId;
       headers['X-lr-source'] = 'wms';
       headers['X-lr-version'] = version;
     }
 
-    console.log(`[RCS] Sending bind request to: ${rcsUrl}`);
-
     const response = await fetch(rcsUrl, {
       method: 'POST',
-      headers: headers,
+      headers,
       body: bodyString,
     });
 
     const responseData = await response.json();
-    
+
     return NextResponse.json({
       success: true,
-      rcsResponse: responseData
+      rcsResponse: responseData,
     });
-
   } catch (error: unknown) {
-    console.error('RCS API Error:', error);
+    console.error('RCS task query error:', error);
     return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
   }
 }
