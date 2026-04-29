@@ -23,7 +23,7 @@ const configuredDevOrigins = (process.env.ALLOWED_DEV_ORIGINS ?? "")
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  allowedDevOrigins: ["192.168.0.156", ...configuredDevOrigins],
+  allowedDevOrigins: ["192.168.0.156", ...localIps, ...configuredDevOrigins],
 };
 
 export default nextConfig;
