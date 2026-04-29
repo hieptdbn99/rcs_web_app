@@ -155,7 +155,7 @@ export const RCS_API_CATALOG: RcsApiDefinition[] = [
     defaultPayload: {
       robotTaskCode: "TASK_001",
       initPriority: 20,
-      deadline: "2026-04-25T12:30:00Z",
+      deadline: "2030-01-01T12:30:00Z",
       extra: null,
     },
   },
@@ -302,7 +302,7 @@ export const RCS_API_CATALOG: RcsApiDefinition[] = [
     defaultPayload: {
       zoneCode: "ZONE_A",
       autoShutdown: "NO",
-      expireTime: "2026-04-25T12:30:00Z",
+      expireTime: "2030-01-01T12:30:00Z",
       extra: null,
     },
   },
@@ -320,7 +320,7 @@ export const RCS_API_CATALOG: RcsApiDefinition[] = [
       invoke: "BANISH",
       pause: "0",
       controlMode: "0",
-      expireTime: "2026-04-25T12:30:00Z",
+      expireTime: "2030-01-01T12:30:00Z",
       extra: null,
     },
   },

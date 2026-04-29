@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
+import { authorizeRcsOperatorRequest } from "@/lib/rcsAuth";
 import { callRcsPath, getErrorMessage, type JsonObject } from "@/lib/rcsClient";
 
 export async function POST(request: Request) {
   try {
+    const authError = authorizeRcsOperatorRequest(request);
+    if (authError) return authError;
+
     const { carrierCode, siteCode, carrierDir, carrierType, invoke } = await request.json();
     const payload: JsonObject = {
       slotCategory: "SITE",

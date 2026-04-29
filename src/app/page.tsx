@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BrowserMultiFormatReader } from "@zxing/browser";
-import { Bot } from "lucide-react";
+import { Bot, KeyRound } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { RCS_API_GROUPS, type RcsApiDefinition, type RcsApiGroup } from "@/lib/rcsApiCatalog";
 import { groupIcons } from "@/lib/rcsFormSchemas";
@@ -27,6 +27,7 @@ import { ApiConsole } from "@/app/components/ApiConsole";
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const RECENT_ACTIONS_KEY = "rcs_recent_actions";
+const OPERATOR_TOKEN_KEY = "rcs_operator_token";
 const MAX_RECENT_ACTIONS = 10;
 const DEFAULT_TASK_TYPE_CARRIER = "PF-LMR-COMMON";
 const DEFAULT_TASK_TYPE_SITE = "PF-DETECT-CARRIER";
@@ -63,6 +64,10 @@ export default function Home() {
   // ── Shared ────────────────────────────────────────────────────────────────
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [lastResult, setLastResult] = useState<RcsEnvelope | null>(null);
+  const [operatorToken, setOperatorToken] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return window.localStorage.getItem(OPERATOR_TOKEN_KEY) ?? "";
+  });
 
   // ── Scanner ───────────────────────────────────────────────────────────────
   const [scanTarget, setScanTarget] = useState<ScanTarget | null>(null);
@@ -156,16 +161,40 @@ export default function Home() {
     window.localStorage.setItem(RECENT_ACTIONS_KEY, JSON.stringify(next));
   };
 
+  const updateOperatorToken = () => {
+    const value = window.prompt("Nhập token API vận hành RCS. Để trống rồi OK để xóa token đã lưu.", operatorToken);
+    if (value === null) return;
+
+    const trimmed = value.trim();
+    setOperatorToken(trimmed);
+    if (trimmed) {
+      window.localStorage.setItem(OPERATOR_TOKEN_KEY, trimmed);
+      toast.success("Đã lưu token API trên thiết bị này.");
+    } else {
+      window.localStorage.removeItem(OPERATOR_TOKEN_KEY);
+      toast("Đã xóa token API trên thiết bị này.", { icon: "i" });
+    }
+  };
+
   const callRcsAction = async (apiId: string, payload: JsonObject): Promise<RcsEnvelope> => {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (operatorToken.trim()) {
+      headers["X-RCS-Operator-Token"] = operatorToken.trim();
+    }
+
     const response = await fetch(`/api/rcs/actions/${apiId}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ payload }),
     });
-    const data = (await response.json()) as RcsEnvelope;
+    const data = (await response.json().catch(() => ({ error: "Response is not JSON" }))) as RcsEnvelope;
     setLastResult(data);
     if (!response.ok || !data.success) {
-      throw new Error(data.error ?? getRcsMessage(data) ?? "RCS request failed");
+      const authMessage =
+        response.status === 401
+          ? "Token API không đúng hoặc chưa được nhập. Bấm nút Token API ở góc trên để nhập lại."
+          : undefined;
+      throw new Error(authMessage ?? data.error ?? getRcsMessage(data) ?? "RCS request failed");
     }
     return data;
   };
@@ -324,8 +353,23 @@ export default function Home() {
                 <p className="text-xs text-slate-500 md:text-sm">Vận hành nhanh và console API RCS-2000</p>
               </div>
             </div>
-            <div className="hidden rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700 md:block">
-              Branch dev
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={updateOperatorToken}
+                className={`inline-flex min-h-9 items-center justify-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold transition md:text-sm ${
+                  operatorToken
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                    : "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"
+                }`}
+                title="Nhập token để gọi API điều khiển RCS nếu server yêu cầu"
+              >
+                <KeyRound className="h-4 w-4" />
+                <span className="hidden sm:inline">{operatorToken ? "Token API đã lưu" : "Token API"}</span>
+              </button>
+              <div className="hidden rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700 md:block">
+                Branch dev
+              </div>
             </div>
           </div>
 

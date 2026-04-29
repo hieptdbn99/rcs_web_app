@@ -49,12 +49,19 @@ Mở `.env.local` và sửa IP RCS thật:
 RCS_HOST=https://IP_MAY_RCS
 APP_KEY=
 APP_SECRET=
+RCS_REQUEST_TIMEOUT_MS=15000
+RCS_ALLOW_INSECURE_TLS=false
+RCS_OPERATOR_TOKEN=
+RCS_CALLBACK_TOKEN=
 ```
 
 Ghi chú:
 
 - Nếu RCS có bật ký số/signature, điền `APP_KEY` và `APP_SECRET`.
 - Nếu RCS không dùng ký số, để trống `APP_KEY` và `APP_SECRET`.
+- Nếu RCS dùng certificate tự ký, đặt `RCS_ALLOW_INSECURE_TLS=true` trên máy chạy web.
+- Nếu đặt `RCS_OPERATOR_TOKEN`, người vận hành phải bấm nút `Token API` trên giao diện và nhập đúng token trước khi gửi lệnh robot.
+- Nếu đặt `RCS_CALLBACK_TOKEN`, cấu hình RCS gửi token qua header `X-RCS-Callback-Token`, `Authorization: Bearer ...`, hoặc query `?token=...` khi gọi callback.
 - Không commit `.env.local` lên GitHub.
 
 ## Chạy Trên Máy Tính
@@ -189,6 +196,18 @@ npm run build      # Build production và tạo USB_Deploy
 ```
 
 Nếu gặp lỗi PowerShell `npm.ps1`, thay `npm` bằng `npm.cmd` trong các lệnh trên.
+
+Mặc định `build_usb.py` không copy `.env.local` vào `USB_Deploy` để tránh đưa key/secret ra USB. Nếu bạn chủ động muốn đóng gói cả cấu hình môi trường, chạy:
+
+```powershell
+$env:USB_COPY_ENV="true"; npm run build
+```
+
+Nếu thư mục `certificates/` có `localhost-key.pem` và `localhost.pem`, bản USB sẽ tạo HTTPS proxy ở cổng `3443` để điện thoại quét QR qua:
+
+```text
+https://IP_MAY_CHAY_WEB:3443
+```
 
 ## File Không Được Push
 

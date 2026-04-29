@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
+import { authorizeRcsCallbackRequest } from "@/lib/rcsAuth";
 import { getRcsCallbackByPath } from "@/lib/rcsApiCatalog";
 
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ slug: string[] }> }
 ) {
+  const authError = authorizeRcsCallbackRequest(request);
+  if (authError) return authError;
+
   const { slug } = await params;
   const callbackPath = `/api/robot/reporter/${slug.join("/")}`;
   const api = getRcsCallbackByPath(callbackPath);

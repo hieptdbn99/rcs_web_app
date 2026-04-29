@@ -45,6 +45,8 @@ Người kỹ thuật cần kiểm tra trước:
 | Điện thoại cùng Wi-Fi/LAN với máy chạy web | Mở được link web bằng IP máy chạy web |
 | File `.env.local` đúng IP RCS | `RCS_HOST=https://IP_MAY_RCS` |
 | Nếu RCS dùng ký số | Đã điền `APP_KEY` và `APP_SECRET` |
+| Nếu RCS dùng certificate tự ký | Đặt `RCS_ALLOW_INSECURE_TLS=true` |
+| Nếu bật token vận hành | Người dùng đã nhập token bằng nút `Token API` |
 | QR trên kệ/vị trí đọc được | Bấm nút quét QR và app tự điền mã |
 
 Ví dụ `.env.local`:
@@ -53,9 +55,14 @@ Ví dụ `.env.local`:
 RCS_HOST=https://192.168.50.9
 APP_KEY=
 APP_SECRET=
+RCS_REQUEST_TIMEOUT_MS=15000
+RCS_ALLOW_INSECURE_TLS=false
+RCS_OPERATOR_TOKEN=
+RCS_CALLBACK_TOKEN=
 ```
 
 Lưu ý: `RCS_HOST` phải có đủ `https://` hoặc `http://`. Không để thiếu chữ `h` như `ttps://...`.
+Nếu đặt `RCS_OPERATOR_TOKEN`, mỗi thiết bị vận hành cần bấm `Token API` trên thanh trên cùng và nhập đúng token trước khi gửi lệnh robot.
 
 ## 4. Cách mở web
 
@@ -77,6 +84,12 @@ Nếu cần dùng camera quét QR, nên mở bằng HTTPS:
 
 ```text
 https://IP_MAY_CHAY_WEB:3000
+```
+
+Với bản USB production có HTTPS proxy, dùng:
+
+```text
+https://IP_MAY_CHAY_WEB:3443
 ```
 
 Ví dụ:
@@ -393,6 +406,7 @@ Khuyến nghị QR trong nhà máy:
 |---|---|---|
 | Không mở được web trên điện thoại | Sai IP máy chạy web hoặc không cùng mạng | Kiểm tra Wi-Fi/LAN và IP |
 | Camera không mở | Dùng HTTP trên điện thoại | Chạy `npm run dev:https` và mở bằng HTTPS |
+| Gửi lệnh báo token sai | Chưa nhập token hoặc nhập sai `RCS_OPERATOR_TOKEN` | Bấm `Token API`, nhập lại token đúng |
 | RCS trả lỗi kết nối | Máy web không thấy IP RCS | Kiểm tra `RCS_HOST`, firewall, mạng |
 | RCS trả `Err_TargetRouteError` | Sai mã kệ/vị trí hoặc route không hợp lệ | Kiểm tra QR và cấu hình point trên RCS |
 | Bind kệ thất bại | Kệ đang có task hoặc đã bind object khác | Query carrier, hủy task nếu cần, rồi thử lại |

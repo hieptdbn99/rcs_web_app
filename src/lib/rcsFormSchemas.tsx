@@ -121,7 +121,7 @@ export const API_FORM_SCHEMAS: Record<string, ApiFormSchema> = {
     fields: [
       { name: "robotTaskCode", label: "Mã task", qr: true },
       { name: "initPriority", label: "Ưu tiên mới", type: "number", helper: "1 đến 120, số lớn ưu tiên cao hơn." },
-      { name: "deadline", label: "Deadline", placeholder: "2026-04-25T12:30:00Z", wide: true },
+      { name: "deadline", label: "Deadline", placeholder: "2030-01-01T12:30:00Z", wide: true },
     ],
   },
   "task-pretask": {
@@ -203,8 +203,8 @@ export const API_FORM_SCHEMAS: Record<string, ApiFormSchema> = {
     fields: [
       { name: "zoneCode", label: "Mã khu vực", qr: true },
       { name: "autoShutdown", label: "Tắt nguồn sau khi về", type: "select", options: fieldOptions.yesNo },
-      { name: "bootTime", label: "Thời gian bật lại", placeholder: "2026-04-25T08:00:00+07:00" },
-      { name: "expireTime", label: "Thời gian timeout", placeholder: "2026-04-25T12:30:00Z" },
+      { name: "bootTime", label: "Thời gian bật lại", placeholder: "2030-01-01T08:00:00+07:00" },
+      { name: "expireTime", label: "Thời gian timeout", placeholder: "2030-01-01T12:30:00Z" },
     ],
   },
   "zone-banish": {
@@ -215,7 +215,7 @@ export const API_FORM_SCHEMAS: Record<string, ApiFormSchema> = {
       { name: "pause", label: "Dừng robot sau khi clear", type: "select", options: [{ label: "Không", value: "0" }, { label: "Có", value: "1" }] },
       { name: "controlMode", label: "Cách clear", type: "select", options: [{ label: "Đi ra khỏi vùng", value: "0" }, { label: "Đi đến điểm đỗ tạm", value: "1" }, { label: "Đi đến vùng chỉ định", value: "2" }] },
       { name: "targetZoneCode", label: "Vùng đích", qr: true },
-      { name: "expireTime", label: "Thời gian timeout", placeholder: "2026-04-25T12:30:00Z" },
+      { name: "expireTime", label: "Thời gian timeout", placeholder: "2030-01-01T12:30:00Z" },
     ],
   },
   "zone-blockade": {

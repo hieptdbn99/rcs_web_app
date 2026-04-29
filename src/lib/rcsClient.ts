@@ -1,7 +1,7 @@
 import crypto from "crypto";
+import http from "http";
+import https from "https";
 import { v4 as uuidv4 } from "uuid";
-
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
 export type JsonObject = Record<string, unknown>;
 
@@ -16,8 +16,31 @@ export type RcsCallResult = {
   };
 };
 
+type RcsHttpResponse = {
+  ok: boolean;
+  status: number;
+  text: string;
+};
+
 export function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Unknown error";
+}
+
+function getRequestTimeoutMs() {
+  const configured = Number(process.env.RCS_REQUEST_TIMEOUT_MS);
+  return Number.isFinite(configured) && configured > 0 ? configured : 15000;
+}
+
+function allowInsecureTls() {
+  return ["1", "true", "yes", "y"].includes((process.env.RCS_ALLOW_INSECURE_TLS ?? "").trim().toLowerCase());
+}
+
+function redactSignedUrl(url: string) {
+  const parsed = new URL(url);
+  if (parsed.searchParams.has("sign")) {
+    parsed.searchParams.set("sign", "redacted");
+  }
+  return parsed.toString();
 }
 
 function generateSignature(
@@ -55,8 +78,60 @@ function generateSignature(
   return { signature, requestId, authHeader, version };
 }
 
-async function parseRcsResponse(response: Response) {
-  const text = await response.text();
+async function postJson(urlString: string, headers: Record<string, string>, body: string): Promise<RcsHttpResponse> {
+  const url = new URL(urlString);
+  const client = url.protocol === "https:" ? https : url.protocol === "http:" ? http : null;
+
+  if (!client) {
+    throw new Error(`Unsupported RCS protocol: ${url.protocol}`);
+  }
+
+  const timeoutMs = getRequestTimeoutMs();
+  const requestHeaders = {
+    ...headers,
+    "Content-Length": Buffer.byteLength(body).toString(),
+  };
+
+  return new Promise((resolve, reject) => {
+    const request = client.request(
+      url,
+      {
+        method: "POST",
+        headers: requestHeaders,
+        agent:
+          url.protocol === "https:" && allowInsecureTls()
+            ? new https.Agent({ rejectUnauthorized: false })
+            : undefined,
+      },
+      (response) => {
+        const chunks: Buffer[] = [];
+
+        response.on("data", (chunk: Buffer | string) => {
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        });
+
+        response.on("end", () => {
+          const status = response.statusCode ?? 0;
+          resolve({
+            ok: status >= 200 && status < 300,
+            status,
+            text: Buffer.concat(chunks).toString("utf8"),
+          });
+        });
+      }
+    );
+
+    request.setTimeout(timeoutMs, () => {
+      request.destroy(new Error(`RCS request timed out after ${timeoutMs}ms`));
+    });
+
+    request.on("error", reject);
+    request.write(body);
+    request.end();
+  });
+}
+
+function parseRcsResponseText(text: string) {
   if (!text) return null;
 
   try {
@@ -91,7 +166,7 @@ export async function callRcsPath(path: string, payload: JsonObject): Promise<Rc
 
   if (appKey && appSecret) {
     const timestamp = new Date().toISOString().replace(/\.\d{3}Z$/, "+00:00");
-    const nonce = Math.random().toString(36).substring(2, 10);
+    const nonce = crypto.randomBytes(8).toString("hex");
     const { signature, requestId, authHeader, version } = generateSignature(
       appKey,
       appSecret,
@@ -111,20 +186,15 @@ export async function callRcsPath(path: string, payload: JsonObject): Promise<Rc
     signed = true;
   }
 
-  const response = await fetch(rcsUrl, {
-    method: "POST",
-    headers,
-    body: bodyString,
-  });
-
-  const rcsResponse = await parseRcsResponse(response);
+  const response = await postJson(rcsUrl, headers, bodyString);
+  const rcsResponse = parseRcsResponseText(response.text);
 
   return {
     success: response.ok,
     httpStatus: response.status,
     rcsResponse,
     request: {
-      url: rcsUrl,
+      url: redactSignedUrl(rcsUrl),
       path,
       signed,
     },

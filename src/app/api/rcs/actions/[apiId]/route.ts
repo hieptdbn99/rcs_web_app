@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { authorizeRcsOperatorRequest } from "@/lib/rcsAuth";
 import { getRcsApiById } from "@/lib/rcsApiCatalog";
 import { callRcsPath, getErrorMessage, type JsonObject } from "@/lib/rcsClient";
 
@@ -11,6 +12,9 @@ export async function POST(
   { params }: { params: Promise<{ apiId: string }> }
 ) {
   try {
+    const authError = authorizeRcsOperatorRequest(request);
+    if (authError) return authError;
+
     const { apiId } = await params;
     const api = getRcsApiById(apiId);
 

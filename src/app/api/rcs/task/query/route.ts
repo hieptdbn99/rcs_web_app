@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
+import { authorizeRcsOperatorRequest } from "@/lib/rcsAuth";
 import { callRcsPath, getErrorMessage } from "@/lib/rcsClient";
 
 export async function POST(request: Request) {
   try {
+    const authError = authorizeRcsOperatorRequest(request);
+    if (authError) return authError;
+
     const { robotTaskCode } = await request.json();
     const result = await callRcsPath("/api/robot/controller/task/query", { robotTaskCode });
 
