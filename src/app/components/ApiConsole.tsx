@@ -1,6 +1,4 @@
 import React from "react";
-import { Cpu, Loader2, Play, Settings2, ShieldAlert } from "lucide-react";
-import toast from "react-hot-toast";
 import { getRcsApisByGroup, RCS_API_GROUPS, type RcsApiDefinition, type RcsApiGroup } from "@/lib/rcsApiCatalog";
 import { API_FORM_SCHEMAS } from "@/lib/rcsFormSchemas";
 import {
@@ -29,6 +27,7 @@ type Props = {
   loadingAction: string | null;
   executeCatalogApi: (api: RcsApiDefinition, payload: JsonObject) => void;
   lastResult: RcsEnvelope | null;
+  showMessage: (message: string, type?: "success" | "error" | "info") => void;
 };
 
 export function ApiConsole({
@@ -43,6 +42,7 @@ export function ApiConsole({
   loadingAction,
   executeCatalogApi,
   lastResult,
+  showMessage,
 }: Props) {
   const apis = getRcsApisByGroup(group);
   const selectedApi = apis.find((api) => api.id === selectedByGroup[group]) ?? apis[0];
@@ -71,61 +71,57 @@ export function ApiConsole({
     try {
       executeCatalogApi(selectedApi, parseJsonObject(payloadText));
     } catch (error: unknown) {
-      toast.error(getErrorMessage(error));
+      showMessage(getErrorMessage(error), "error");
     }
   };
 
   return (
-    <section className="grid gap-5 lg:grid-cols-[360px_1fr]">
+    <section className="api-layout">
       {/* API list sidebar */}
-      <aside className="space-y-3">
+      <aside className="api-sidebar">
         <div>
-          <h2 className="text-lg font-semibold">{groupInfo?.title}</h2>
-          <p className="text-sm text-slate-500">{groupInfo?.description}</p>
+          <h2 className="section-title">{groupInfo?.title}</h2>
+          <p className="muted-text">{groupInfo?.description}</p>
         </div>
 
-        <div className="space-y-2">
+        <div className="api-list">
           {apis.map((api) => (
             <button
               type="button"
               key={api.id}
               onClick={() => setSelectedByGroup((current) => ({ ...current, [group]: api.id }))}
-              className={`w-full rounded-xl border p-3 text-left transition ${
-                selectedApi.id === api.id
-                  ? "border-slate-950 bg-white shadow-sm"
-                  : "border-slate-200 bg-white hover:border-slate-400 active:bg-slate-50"
-              }`}
+              className={`api-list-item${selectedApi.id === api.id ? " api-list-item-active" : ""}`}
             >
-              <div className="mb-1 flex items-start justify-between gap-2">
-                <p className="font-semibold">{api.title}</p>
-                <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${riskStyles(api.risk)}`}>
+              <div className="api-list-item-head">
+                <p className="api-list-title">{api.title}</p>
+                <span className={`risk-badge ${riskStyles(api.risk)}`}>
                   {riskLabel(api.risk)}
                 </span>
               </div>
-              <p className="text-xs font-medium text-slate-500">{api.workflow}</p>
-              <p className="mt-1 line-clamp-2 text-sm text-slate-600">{api.description}</p>
+              <p className="api-workflow">{api.workflow}</p>
+              <p className="api-description">{api.description}</p>
             </button>
           ))}
         </div>
       </aside>
 
       {/* API detail + form */}
-      <div className="space-y-5">
+      <div className="api-detail">
         <Panel
           title={selectedApi.title}
-          icon={selectedApi.direction === "callback" ? <Cpu className="h-5 w-5" /> : <Settings2 className="h-5 w-5" />}
+          mark={selectedApi.direction === "callback" ? "CB" : "API"}
         >
           {/* Meta */}
-          <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+          <div className="api-meta">
             <div>
-              <p className="text-sm text-slate-600">{selectedApi.description}</p>
-              <p className="mt-2 break-all rounded-lg bg-slate-100 px-3 py-2 font-mono text-xs text-slate-700">{selectedApi.endpoint}</p>
+              <p className="body-text">{selectedApi.description}</p>
+              <p className="endpoint-text">{selectedApi.endpoint}</p>
             </div>
-            <div className="flex flex-wrap items-start gap-2 md:justify-end">
-              <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${riskStyles(selectedApi.risk)}`}>
+            <div className="api-meta-badges">
+              <span className={`risk-badge ${riskStyles(selectedApi.risk)}`}>
                 {riskLabel(selectedApi.risk)}
               </span>
-              <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700">
+              <span className="plain-badge">
                 {selectedApi.direction === "callback" ? "RCS gọi vào web" : "Web gọi sang RCS"}
               </span>
             </div>
@@ -133,30 +129,30 @@ export function ApiConsole({
 
           {/* Notes */}
           {selectedApi.notes?.map((note) => (
-            <div key={note} className="flex gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-              <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
+            <div key={note} className="notice notice-warning">
+              <span className="notice-mark" aria-hidden="true">!</span>
               <span>{note}</span>
             </div>
           ))}
 
           {/* Callback info vs. action form */}
           {selectedApi.direction === "callback" ? (
-            <div className="space-y-3">
-              <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+            <div className="stack">
+              <div className="notice notice-info notice-block">
                 Cấu hình RCS gọi về endpoint local này trên máy chạy web:
-                <pre className="mt-2 overflow-auto rounded bg-white p-2 font-mono text-xs text-blue-900">{selectedApi.localCallbackPath}</pre>
+                <pre className="inline-code-box">{selectedApi.localCallbackPath}</pre>
               </div>
               <Field label="Payload mẫu RCS sẽ gửi">
-                <textarea suppressHydrationWarning value={payloadText} readOnly rows={12} className="field-input min-h-72 resize-y font-mono text-sm" />
+                <textarea suppressHydrationWarning value={payloadText} readOnly rows={12} className="field-input field-textarea field-textarea-large field-input-code" />
               </Field>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="stack">
               {/* Form fields */}
               {schema ? (
                 <>
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">{schema.summary}</div>
-                  <div className="grid gap-3 md:grid-cols-2">
+                  <div className="summary-box">{schema.summary}</div>
+                  <div className="form-grid form-grid-2">
                     {schema.fields.map((field) => (
                       <ApiFieldInput
                         key={field.name}
@@ -168,9 +164,9 @@ export function ApiConsole({
                       />
                     ))}
                   </div>
-                  <div className="rounded-lg border border-slate-200 bg-white p-3">
-                    <p className="mb-2 text-sm font-semibold text-slate-700">Dữ liệu sẽ gửi sang RCS</p>
-                    <pre className="max-h-72 overflow-auto rounded-lg bg-slate-950 p-3 text-xs text-slate-100">{formatJson(formPayload)}</pre>
+                  <div className="preview-box">
+                    <p className="preview-title">Dữ liệu sẽ gửi sang RCS</p>
+                    <pre className="json-box">{formatJson(formPayload)}</pre>
                   </div>
                   <button
                     type="button"
@@ -178,20 +174,19 @@ export function ApiConsole({
                     disabled={loadingAction === selectedApi.id}
                     className="primary-button"
                   >
-                    {loadingAction === selectedApi.id ? <Loader2 className="h-5 w-5 animate-spin" /> : <Play className="h-5 w-5" />}
-                    Gửi lệnh bằng form
+                    {loadingAction === selectedApi.id ? "Đang gửi..." : "Gửi lệnh bằng form"}
                   </button>
                 </>
               ) : (
-                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                <div className="notice notice-warning notice-block">
                   API này chưa có form riêng, kỹ thuật có thể dùng JSON nâng cao bên dưới.
                 </div>
               )}
 
               {/* Advanced JSON */}
-              <details className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                <summary className="cursor-pointer text-sm font-semibold text-slate-700">JSON nâng cao cho kỹ thuật</summary>
-                <div className="mt-3 space-y-3">
+              <details className="details-box">
+                <summary className="details-summary">JSON nâng cao cho kỹ thuật</summary>
+                <div className="details-body">
                   <Field label="Payload JSON">
                     <textarea
                       suppressHydrationWarning
@@ -201,20 +196,19 @@ export function ApiConsole({
                       }
                       rows={12}
                       spellCheck={false}
-                      className="field-input min-h-72 resize-y font-mono text-sm"
+                      className="field-input field-textarea field-textarea-large field-input-code"
                     />
                   </Field>
-                  <div className="grid gap-2 md:grid-cols-[1fr_auto]">
+                  <div className="button-row">
                     <button type="button" onClick={callUsingJson} disabled={loadingAction === selectedApi.id} className="secondary-button">
-                      {loadingAction === selectedApi.id ? <Loader2 className="h-5 w-5 animate-spin" /> : <Settings2 className="h-5 w-5" />}
-                      Gửi bằng JSON nâng cao
+                      {loadingAction === selectedApi.id ? "Đang gửi..." : "Gửi bằng JSON nâng cao"}
                     </button>
                     <button
                       type="button"
                       onClick={() =>
                         setPayloadTexts((current) => ({ ...current, [selectedApi.id]: formatJson(selectedApi.defaultPayload) }))
                       }
-                      className="secondary-button md:w-auto"
+                      className="secondary-button button-auto"
                     >
                       Reset JSON mẫu
                     </button>

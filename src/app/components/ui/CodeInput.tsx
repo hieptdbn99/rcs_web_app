@@ -1,5 +1,4 @@
 import React from "react";
-import { QrCode } from "lucide-react";
 import { Field } from "@/app/components/ui/Panel";
 import type { ScanTarget } from "@/lib/rcsTypes";
 
@@ -10,7 +9,7 @@ export function CodeInput({
   scanTarget,
   startScan,
   placeholder,
-  icon,
+  mark,
 }: {
   label: string;
   value: string;
@@ -18,28 +17,28 @@ export function CodeInput({
   scanTarget: ScanTarget;
   startScan: (target: ScanTarget) => void;
   placeholder: string;
-  icon: React.ReactNode;
+  mark: React.ReactNode;
 }) {
   return (
     <Field label={label}>
-      <div className="flex gap-2">
-        <div className="relative flex-1">
-          <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">{icon}</div>
+      <div className="input-row">
+        <div className="input-wrap">
+          <span className="input-mark" aria-hidden="true">{mark}</span>
           <input
             suppressHydrationWarning
             value={value}
             onChange={(event) => onChange(event.target.value)}
             placeholder={placeholder}
-            className="field-input pl-10 font-mono"
+            className="field-input field-input-code field-input-with-mark"
           />
         </div>
         <button
           type="button"
           onClick={() => startScan(scanTarget)}
-          className="icon-button h-12 w-12 shrink-0 bg-slate-950 text-white hover:bg-slate-800 active:bg-slate-700"
+          className="icon-button scan-button"
           aria-label={`Quét ${label}`}
         >
-          <QrCode className="h-5 w-5" />
+          QR
         </button>
       </div>
     </Field>

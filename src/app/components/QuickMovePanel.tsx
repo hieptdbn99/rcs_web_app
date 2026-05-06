@@ -1,5 +1,4 @@
 import React from "react";
-import { Bot, Loader2, MapPin, Package, Play } from "lucide-react";
 import { Panel, Field } from "@/app/components/ui/Panel";
 import { CodeInput } from "@/app/components/ui/CodeInput";
 import type { MoveMode, ScanTarget } from "@/lib/rcsTypes";
@@ -27,24 +26,20 @@ type Props = {
 
 export function QuickMovePanel(props: Props) {
   return (
-    <Panel title="Chạy robot nhanh" icon={<Bot className="h-5 w-5" />}>
+    <Panel title="Chạy robot nhanh" mark="R">
       {/* Mode toggle */}
-      <div className="grid grid-cols-2 gap-2 rounded-lg bg-slate-100 p-1">
+      <div className="segmented">
         <button
           type="button"
           onClick={() => props.setMoveMode("carrier-to-site")}
-          className={`rounded-md px-3 py-3 text-sm font-semibold transition ${
-            props.moveMode === "carrier-to-site" ? "bg-white text-slate-950 shadow-sm" : "text-slate-600 active:bg-slate-200"
-          }`}
+          className={`segmented-button${props.moveMode === "carrier-to-site" ? " segmented-button-active" : ""}`}
         >
           Kệ {"->"} Trạm
         </button>
         <button
           type="button"
           onClick={() => props.setMoveMode("site-to-site")}
-          className={`rounded-md px-3 py-3 text-sm font-semibold transition ${
-            props.moveMode === "site-to-site" ? "bg-white text-slate-950 shadow-sm" : "text-slate-600 active:bg-slate-200"
-          }`}
+          className={`segmented-button${props.moveMode === "site-to-site" ? " segmented-button-active" : ""}`}
         >
           Vị trí {"->"} Vị trí
         </button>
@@ -52,7 +47,7 @@ export function QuickMovePanel(props: Props) {
 
       {/* Source / carrier inputs */}
       {props.moveMode === "carrier-to-site" ? (
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="form-grid form-grid-2">
           <CodeInput
             label="Mã kệ"
             value={props.carrierCode}
@@ -60,7 +55,7 @@ export function QuickMovePanel(props: Props) {
             scanTarget="carrier"
             startScan={props.startScan}
             placeholder="VD: RACK_01"
-            icon={<Package className="h-5 w-5" />}
+            mark="K"
           />
           <CodeInput
             label="Vị trí đích"
@@ -69,11 +64,11 @@ export function QuickMovePanel(props: Props) {
             scanTarget="destination"
             startScan={props.startScan}
             placeholder="VD: STATION_A"
-            icon={<MapPin className="h-5 w-5" />}
+            mark="P"
           />
         </div>
       ) : (
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="form-grid form-grid-2">
           <CodeInput
             label="Vị trí lấy"
             value={props.sourceCode}
@@ -81,7 +76,7 @@ export function QuickMovePanel(props: Props) {
             scanTarget="source"
             startScan={props.startScan}
             placeholder="VD: SITE_A"
-            icon={<MapPin className="h-5 w-5" />}
+            mark="P"
           />
           <CodeInput
             label="Vị trí đích"
@@ -90,15 +85,15 @@ export function QuickMovePanel(props: Props) {
             scanTarget="destination"
             startScan={props.startScan}
             placeholder="VD: SITE_B"
-            icon={<MapPin className="h-5 w-5" />}
+            mark="P"
           />
         </div>
       )}
 
       {/* Extra params */}
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className="form-grid form-grid-3">
         <Field label="Task type">
-          <input suppressHydrationWarning value={props.taskType} onChange={(e) => props.setTaskType(e.target.value)} className="field-input font-mono" />
+          <input suppressHydrationWarning value={props.taskType} onChange={(e) => props.setTaskType(e.target.value)} className="field-input field-input-code" />
         </Field>
         <Field label="Ưu tiên">
           <input suppressHydrationWarning value={props.priority} onChange={(e) => props.setPriority(e.target.value)} inputMode="numeric" className="field-input" />
@@ -109,8 +104,7 @@ export function QuickMovePanel(props: Props) {
       </div>
 
       <button type="button" onClick={props.executeMoveTask} disabled={!props.moveReady || props.loading} className="primary-button">
-        {props.loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Play className="h-5 w-5" />}
-        Gửi lệnh robot
+        {props.loading ? "Đang gửi..." : "Gửi lệnh robot"}
       </button>
     </Panel>
   );

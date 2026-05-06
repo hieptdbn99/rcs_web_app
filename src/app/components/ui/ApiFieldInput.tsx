@@ -1,5 +1,4 @@
 import React from "react";
-import { QrCode } from "lucide-react";
 import { Field } from "@/app/components/ui/Panel";
 import type { ApiFormField, ScanTarget } from "@/lib/rcsTypes";
 
@@ -31,7 +30,7 @@ export function ApiFieldInput({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         rows={4}
-        className="field-input resize-y"
+        className="field-input field-textarea"
         placeholder={field.placeholder}
       />
     ) : (
@@ -46,22 +45,22 @@ export function ApiFieldInput({
     );
 
   return (
-    <div className={field.wide ? "md:col-span-2" : ""}>
+    <div className={field.wide ? "form-span-2" : ""}>
       <Field label={field.label}>
-        <div className="flex gap-2">
-          <div className="flex-1">{input}</div>
+        <div className="input-row">
+          <div className="input-grow">{input}</div>
           {field.qr && (
             <button
               type="button"
               onClick={() => startScan({ kind: "apiField", apiId, fieldName: field.name, label: field.label })}
-              className="icon-button h-12 w-12 shrink-0 bg-slate-950 text-white hover:bg-slate-800 active:bg-slate-700"
+              className="icon-button scan-button"
               aria-label={`Quét ${field.label}`}
             >
-              <QrCode className="h-5 w-5" />
+              QR
             </button>
           )}
         </div>
-        {field.helper && <span className="mt-1 block text-xs text-slate-500">{field.helper}</span>}
+        {field.helper && <span className="field-helper">{field.helper}</span>}
       </Field>
     </div>
   );

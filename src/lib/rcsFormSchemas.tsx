@@ -1,12 +1,3 @@
-import React from "react";
-import {
-  Blocks,
-  ClipboardList,
-  Map,
-  Package,
-  Play,
-  RotateCw,
-} from "lucide-react";
 import type { ApiFormSchema, MainTab, QuickScanTarget, ScanTarget } from "@/lib/rcsTypes";
 
 // ─── Quick-scan labels ────────────────────────────────────────────────────────
@@ -25,15 +16,15 @@ export function getScanLabel(target: ScanTarget): string {
   return `Quét QR cho ${target.label}`;
 }
 
-// ─── Tab icons ────────────────────────────────────────────────────────────────
+// ─── Tab marks ────────────────────────────────────────────────────────────────
 
-export const groupIcons: Record<MainTab, React.ReactNode> = {
-  quick: <Play className="h-4 w-4" />,
-  task: <ClipboardList className="h-4 w-4" />,
-  asset: <Package className="h-4 w-4" />,
-  area: <Map className="h-4 w-4" />,
-  status: <RotateCw className="h-4 w-4" />,
-  integration: <Blocks className="h-4 w-4" />,
+export const groupMarks: Record<MainTab, string> = {
+  quick: "Q",
+  task: "T",
+  asset: "K",
+  area: "A",
+  status: "S",
+  integration: "I",
 };
 
 // ─── Shared select options ────────────────────────────────────────────────────

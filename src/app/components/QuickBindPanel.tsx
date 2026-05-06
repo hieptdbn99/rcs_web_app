@@ -1,5 +1,4 @@
 import React from "react";
-import { CheckCircle2, Loader2, MapPin, Package, Unlink } from "lucide-react";
 import { Panel, Field } from "@/app/components/ui/Panel";
 import { CodeInput } from "@/app/components/ui/CodeInput";
 import type { ScanTarget } from "@/lib/rcsTypes";
@@ -24,31 +23,27 @@ export function QuickBindPanel(props: Props) {
   const isBind = props.bindInvoke === "BIND";
 
   return (
-    <Panel title="Gắn / Bỏ gắn kệ" icon={<Package className="h-5 w-5" />}>
+    <Panel title="Gắn / Bỏ gắn kệ" mark="K">
       {/* Bind / Unbind toggle */}
-      <div className="grid grid-cols-2 gap-2 rounded-lg bg-slate-100 p-1">
+      <div className="segmented">
         <button
           type="button"
           onClick={() => props.setBindInvoke("BIND")}
-          className={`rounded-md px-3 py-3 text-sm font-semibold transition ${
-            isBind ? "bg-white text-slate-950 shadow-sm" : "text-slate-600 active:bg-slate-200"
-          }`}
+          className={`segmented-button${isBind ? " segmented-button-active" : ""}`}
         >
           Gắn kệ
         </button>
         <button
           type="button"
           onClick={() => props.setBindInvoke("UNBIND")}
-          className={`rounded-md px-3 py-3 text-sm font-semibold transition ${
-            !isBind ? "bg-white text-red-600 shadow-sm" : "text-slate-600 active:bg-slate-200"
-          }`}
+          className={`segmented-button${!isBind ? " segmented-button-active segmented-button-danger" : ""}`}
         >
           Bỏ gắn
         </button>
       </div>
 
       {/* Carrier / site inputs */}
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="form-grid form-grid-2">
         <CodeInput
           label="Mã kệ"
           value={props.bindCarrierCode}
@@ -56,7 +51,7 @@ export function QuickBindPanel(props: Props) {
           scanTarget="bindCarrier"
           startScan={props.startScan}
           placeholder="Quét QR trên kệ"
-          icon={<Package className="h-5 w-5" />}
+          mark="K"
         />
         <CodeInput
           label="Vị trí"
@@ -65,13 +60,13 @@ export function QuickBindPanel(props: Props) {
           scanTarget="bindSite"
           startScan={props.startScan}
           placeholder="Quét QR tại vị trí"
-          icon={<MapPin className="h-5 w-5" />}
+          mark="P"
         />
       </div>
 
       {/* Direction + carrier type (only for BIND) */}
       {isBind && (
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="form-grid form-grid-2">
           <Field label="Góc kệ">
             <select suppressHydrationWarning value={props.bindDirection} onChange={(e) => props.setBindDirection(e.target.value)} className="field-input">
               <option value="0">0 độ</option>
@@ -91,14 +86,9 @@ export function QuickBindPanel(props: Props) {
         type="button"
         onClick={props.executeBind}
         disabled={!props.bindCarrierCode.trim() || !props.bindSiteCode.trim() || props.loading}
-        className={`primary-button ${
-          isBind
-            ? "bg-amber-600 hover:bg-amber-500 active:bg-amber-400 disabled:bg-amber-300"
-            : "bg-red-600 hover:bg-red-500 active:bg-red-400 disabled:bg-red-300"
-        }`}
+        className={`primary-button ${isBind ? "primary-button-warning" : "primary-button-danger"}`}
       >
-        {props.loading ? <Loader2 className="h-5 w-5 animate-spin" /> : isBind ? <CheckCircle2 className="h-5 w-5" /> : <Unlink className="h-5 w-5" />}
-        {isBind ? "Xác nhận gắn kệ" : "Xác nhận bỏ gắn"}
+        {props.loading ? "Đang gửi..." : isBind ? "Xác nhận gắn kệ" : "Xác nhận bỏ gắn"}
       </button>
     </Panel>
   );

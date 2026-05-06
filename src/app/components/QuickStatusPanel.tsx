@@ -1,5 +1,4 @@
 import React from "react";
-import { ClipboardList, Loader2, RotateCw } from "lucide-react";
 import { Panel } from "@/app/components/ui/Panel";
 import { CodeInput } from "@/app/components/ui/CodeInput";
 import type { ScanTarget } from "@/lib/rcsTypes";
@@ -14,7 +13,7 @@ type Props = {
 
 export function QuickStatusPanel(props: Props) {
   return (
-    <Panel title="Tra cứu nhanh" icon={<ClipboardList className="h-5 w-5" />}>
+    <Panel title="Tra cứu nhanh" mark="S">
       <CodeInput
         label="Mã task"
         value={props.statusTaskCode}
@@ -22,11 +21,10 @@ export function QuickStatusPanel(props: Props) {
         scanTarget="statusTask"
         startScan={props.startScan}
         placeholder="robotTaskCode"
-        icon={<ClipboardList className="h-5 w-5" />}
+        mark="T"
       />
       <button type="button" onClick={props.queryTaskStatus} disabled={props.loading} className="secondary-button">
-        {props.loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <RotateCw className="h-5 w-5" />}
-        Kiểm tra task
+        {props.loading ? "Đang kiểm tra..." : "Kiểm tra task"}
       </button>
     </Panel>
   );

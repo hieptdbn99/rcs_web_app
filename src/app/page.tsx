@@ -2,10 +2,8 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BrowserMultiFormatReader } from "@zxing/browser";
-import { Bot, KeyRound } from "lucide-react";
-import toast, { Toaster } from "react-hot-toast";
 import { RCS_API_GROUPS, type RcsApiDefinition, type RcsApiGroup } from "@/lib/rcsApiCatalog";
-import { groupIcons } from "@/lib/rcsFormSchemas";
+import { groupMarks } from "@/lib/rcsFormSchemas";
 import {
   getErrorMessage,
   getRcsCode,
@@ -31,6 +29,14 @@ const OPERATOR_TOKEN_KEY = "rcs_operator_token";
 const MAX_RECENT_ACTIONS = 10;
 const DEFAULT_TASK_TYPE_CARRIER = "PF-LMR-COMMON";
 const DEFAULT_TASK_TYPE_SITE = "PF-DETECT-CARRIER";
+type NoticeType = "success" | "error" | "info";
+
+function createBrowserId() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `id-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -68,6 +74,7 @@ export default function Home() {
     if (typeof window === "undefined") return "";
     return window.localStorage.getItem(OPERATOR_TOKEN_KEY) ?? "";
   });
+  const [notice, setNotice] = useState<{ id: string; message: string; type: NoticeType } | null>(null);
 
   // ── Scanner ───────────────────────────────────────────────────────────────
   const [scanTarget, setScanTarget] = useState<ScanTarget | null>(null);
@@ -94,6 +101,16 @@ export default function Home() {
     if (moveMode === "carrier-to-site") return carrierCode.trim() && destinationCode.trim();
     return sourceCode.trim() && destinationCode.trim();
   }, [carrierCode, destinationCode, moveMode, sourceCode]);
+
+  const showMessage = useCallback((message: string, type: NoticeType = "info") => {
+    setNotice({ id: createBrowserId(), message, type });
+  }, []);
+
+  useEffect(() => {
+    if (!notice) return;
+    const timer = window.setTimeout(() => setNotice(null), 3200);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
 
   // ─── Scanner callbacks ───────────────────────────────────────────────────
 
@@ -136,7 +153,7 @@ export default function Home() {
         if (result) {
           const value = normalizeQrValue(result.getText());
           applyScanValue(scanTarget, value);
-          toast.success(`Đã quét: ${value}`);
+          showMessage(`Đã quét: ${value}`, "success");
           stopScanner();
         }
         if (error && error.name !== "NotFoundException") setScannerError(error.message);
@@ -148,13 +165,13 @@ export default function Home() {
       mounted = false;
       stopScanner();
     };
-  }, [applyScanValue, scanTarget, stopScanner]);
+  }, [applyScanValue, scanTarget, showMessage, stopScanner]);
 
   // ─── Helpers ─────────────────────────────────────────────────────────────
 
   const saveRecentAction = (action: Omit<RecentAction, "id" | "createdAt">) => {
     const next = [
-      { ...action, id: crypto.randomUUID(), createdAt: new Date().toLocaleString("vi-VN") },
+      { ...action, id: createBrowserId(), createdAt: new Date().toLocaleString("vi-VN") },
       ...recentActions,
     ].slice(0, MAX_RECENT_ACTIONS);
     setRecentActions(next);
@@ -169,10 +186,10 @@ export default function Home() {
     setOperatorToken(trimmed);
     if (trimmed) {
       window.localStorage.setItem(OPERATOR_TOKEN_KEY, trimmed);
-      toast.success("Đã lưu token API trên thiết bị này.");
+      showMessage("Đã lưu token API trên thiết bị này.", "success");
     } else {
       window.localStorage.removeItem(OPERATOR_TOKEN_KEY);
-      toast("Đã xóa token API trên thiết bị này.", { icon: "i" });
+      showMessage("Đã xóa token API trên thiết bị này.", "info");
     }
   };
 
@@ -203,7 +220,7 @@ export default function Home() {
 
   const executeMoveTask = async () => {
     if (!moveReady) {
-      toast.error("Vui lòng quét hoặc nhập đủ mã trước khi gửi lệnh.");
+      showMessage("Vui lòng quét hoặc nhập đủ mã trước khi gửi lệnh.", "error");
       return;
     }
     const fromText = moveMode === "carrier-to-site" ? carrierCode.trim() : sourceCode.trim();
@@ -234,13 +251,13 @@ export default function Home() {
       const result = await callRcsAction("task-submit", payload);
       const taskCode = getTaskCode(result);
       if (isRcsSuccess(result)) {
-        toast.success("Đã gửi lệnh robot thành công.");
+        showMessage("Đã gửi lệnh robot thành công.", "success");
         saveRecentAction({ title: "Chuyển kệ", detail: `${fromText} -> ${toText}`, code: getRcsCode(result), taskCode });
       } else {
-        toast.error(getRcsMessage(result) ?? "RCS trả về lỗi nghiệp vụ.");
+        showMessage(getRcsMessage(result) ?? "RCS trả về lỗi nghiệp vụ.", "error");
       }
     } catch (error: unknown) {
-      toast.error(getErrorMessage(error));
+      showMessage(getErrorMessage(error), "error");
     } finally {
       setLoadingAction(null);
     }
@@ -248,7 +265,7 @@ export default function Home() {
 
   const executeBind = async () => {
     if (!bindCarrierCode.trim() || !bindSiteCode.trim()) {
-      toast.error("Vui lòng quét hoặc nhập đủ mã kệ và vị trí hiện tại.");
+      showMessage("Vui lòng quét hoặc nhập đủ mã kệ và vị trí hiện tại.", "error");
       return;
     }
     const isBind = bindInvoke === "BIND";
@@ -274,17 +291,17 @@ export default function Home() {
 
       const result = await callRcsAction("site-bind", payload);
       if (isRcsSuccess(result)) {
-        toast.success(isBind ? "Đã gắn kệ vào vị trí trên RCS." : "Đã bỏ gắn kệ khỏi vị trí trên RCS.");
+        showMessage(isBind ? "Đã gắn kệ vào vị trí trên RCS." : "Đã bỏ gắn kệ khỏi vị trí trên RCS.", "success");
         saveRecentAction({
           title: isBind ? "Gắn kệ" : "Bỏ gắn kệ",
           detail: `${bindCarrierCode.trim()} tại ${bindSiteCode.trim()}`,
           code: getRcsCode(result),
         });
       } else {
-        toast.error(getRcsMessage(result) ?? "RCS trả về lỗi nghiệp vụ.");
+        showMessage(getRcsMessage(result) ?? "RCS trả về lỗi nghiệp vụ.", "error");
       }
     } catch (error: unknown) {
-      toast.error(getErrorMessage(error));
+      showMessage(getErrorMessage(error), "error");
     } finally {
       setLoadingAction(null);
     }
@@ -292,19 +309,19 @@ export default function Home() {
 
   const queryTaskStatus = async () => {
     if (!statusTaskCode.trim()) {
-      toast.error("Vui lòng nhập hoặc quét mã task.");
+      showMessage("Vui lòng nhập hoặc quét mã task.", "error");
       return;
     }
     setLoadingAction("status");
     try {
       const result = await callRcsAction("task-query", { robotTaskCode: statusTaskCode.trim() });
       if (isRcsSuccess(result)) {
-        toast.success("Đã lấy trạng thái task.");
+        showMessage("Đã lấy trạng thái task.", "success");
       } else {
-        toast.error(getRcsMessage(result) ?? "Không lấy được trạng thái.");
+        showMessage(getRcsMessage(result) ?? "Không lấy được trạng thái.", "error");
       }
     } catch (error: unknown) {
-      toast.error(getErrorMessage(error));
+      showMessage(getErrorMessage(error), "error");
     } finally {
       setLoadingAction(null);
     }
@@ -312,7 +329,7 @@ export default function Home() {
 
   const executeCatalogApi = async (api: RcsApiDefinition, payload: JsonObject) => {
     if (api.direction === "callback") {
-      toast("Đây là callback để RCS gọi vào web, không phải API gọi sang RCS.", { icon: "i" });
+      showMessage("Đây là callback để RCS gọi vào web, không phải API gọi sang RCS.", "info");
       return;
     }
     if (api.risk === "danger") {
@@ -322,13 +339,13 @@ export default function Home() {
     try {
       const result = await callRcsAction(api.id, payload);
       if (isRcsSuccess(result)) {
-        toast.success(`Đã gọi ${api.title}.`);
+        showMessage(`Đã gọi ${api.title}.`, "success");
         saveRecentAction({ title: api.title, detail: api.endpoint, code: getRcsCode(result), taskCode: getTaskCode(result) });
       } else {
-        toast.error(getRcsMessage(result) ?? "RCS trả về lỗi nghiệp vụ.");
+        showMessage(getRcsMessage(result) ?? "RCS trả về lỗi nghiệp vụ.", "error");
       }
     } catch (error: unknown) {
-      toast.error(getErrorMessage(error));
+      showMessage(getErrorMessage(error), "error");
     } finally {
       setLoadingAction(null);
     }
@@ -337,50 +354,47 @@ export default function Home() {
   // ─── Render ──────────────────────────────────────────────────────────────
 
   return (
-    <main className="min-h-screen bg-[#f4f6f8] text-slate-950">
-      <Toaster position="top-center" toastOptions={{ duration: 2800 }} />
+    <main className="app-main">
+      {notice && (
+        <div className={`app-toast app-toast-${notice.type}`} role="status" aria-live="polite" key={notice.id}>
+          {notice.message}
+        </div>
+      )}
 
-      <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col">
+      <div className="app-shell">
         {/* Header */}
-        <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 px-4 py-3 shadow-sm backdrop-blur md:px-8">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-slate-950 text-white">
-                <Bot className="h-6 w-6" />
-              </div>
+        <header className="app-header">
+          <div className="header-row">
+            <div className="brand-row">
+              <div className="brand-mark" aria-hidden="true">RCS</div>
               <div>
-                <h1 className="text-lg font-semibold leading-tight md:text-2xl">RCS Worker Panel</h1>
-                <p className="text-xs text-slate-500 md:text-sm">Vận hành nhanh và console API RCS-2000</p>
+                <h1 className="brand-title">RCS Worker Panel</h1>
+                <p className="brand-subtitle">Vận hành nhanh và console API RCS-2000</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="header-actions">
               <button
                 type="button"
                 onClick={updateOperatorToken}
-                className={`inline-flex min-h-9 items-center justify-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold transition md:text-sm ${
-                  operatorToken
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                    : "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"
-                }`}
+                className={`token-button${operatorToken ? " token-button-saved" : ""}`}
                 title="Nhập token để gọi API điều khiển RCS nếu server yêu cầu"
               >
-                <KeyRound className="h-4 w-4" />
-                <span className="hidden sm:inline">{operatorToken ? "Token API đã lưu" : "Token API"}</span>
+                {operatorToken ? "Token API đã lưu" : "Token API"}
               </button>
-              <div className="hidden rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700 md:block">
+              <div className="branch-badge">
                 Branch dev
               </div>
             </div>
           </div>
 
           {/* Tab navigation */}
-          <nav className="mt-3 flex gap-2 overflow-x-auto pb-1">
-            <TopTab active={activeTab === "quick"} icon={groupIcons.quick} label="Nhanh" onClick={() => setActiveTab("quick")} />
+          <nav className="top-tabs">
+            <TopTab active={activeTab === "quick"} mark={groupMarks.quick} label="Nhanh" onClick={() => setActiveTab("quick")} />
             {RCS_API_GROUPS.map((group) => (
               <TopTab
                 key={group.id}
                 active={activeTab === group.id}
-                icon={groupIcons[group.id]}
+                mark={groupMarks[group.id]}
                 label={group.title}
                 onClick={() => setActiveTab(group.id)}
               />
@@ -389,10 +403,10 @@ export default function Home() {
         </header>
 
         {/* Main content */}
-        <div className="flex-1 px-4 py-5 md:px-8 md:py-8">
+        <div className="content">
           {activeTab === "quick" ? (
-            <section className="grid gap-5 lg:grid-cols-[1fr_360px]">
-              <div className="space-y-5">
+            <section className="quick-layout">
+              <div className="stack">
                 <QuickMovePanel
                   moveMode={moveMode}
                   setMoveMode={(mode) => {
@@ -432,7 +446,7 @@ export default function Home() {
                   executeBind={executeBind}
                 />
               </div>
-              <aside className="space-y-5">
+              <aside className="stack">
                 <QuickStatusPanel
                   statusTaskCode={statusTaskCode}
                   setStatusTaskCode={setStatusTaskCode}
@@ -457,6 +471,7 @@ export default function Home() {
               loadingAction={loadingAction}
               executeCatalogApi={executeCatalogApi}
               lastResult={lastResult}
+              showMessage={showMessage}
             />
           )}
         </div>

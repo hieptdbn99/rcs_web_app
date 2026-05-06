@@ -10,23 +10,22 @@
     "start": "next start",
     "lint": "eslint"
   },
+  "browserslist": [
+    "chrome 85"
+  ],
   "dependencies": {
     "@zxing/browser": "^0.1.5",
-    "lucide-react": "^1.9.0",
     "next": "16.2.4",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "react-hot-toast": "^2.6.0",
     "uuid": "^14.0.0"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
-    "tailwindcss": "^4",
     "typescript": "^5"
   }
 }

@@ -82,9 +82,9 @@ export function getTaskCode(result?: RcsEnvelope): string | undefined {
 // ─── Risk display ─────────────────────────────────────────────────────────────
 
 export function riskStyles(risk: RcsRisk): string {
-  if (risk === "danger") return "border-red-200 bg-red-50 text-red-700";
-  if (risk === "careful") return "border-amber-200 bg-amber-50 text-amber-700";
-  return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (risk === "danger") return "risk-danger";
+  if (risk === "careful") return "risk-careful";
+  return "risk-safe";
 }
 
 export function riskLabel(risk: RcsRisk): string {
