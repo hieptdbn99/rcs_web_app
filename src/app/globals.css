@@ -28,8 +28,10 @@
 
 html,
 body {
+  width: 100%;
   min-height: 100%;
   margin: 0;
+  overflow-x: hidden;
 }
 
 body {
@@ -86,6 +88,7 @@ pre {
   max-width: 1280px;
   min-height: 100vh;
   margin: 0 auto;
+  overflow-x: hidden;
 }
 
 .app-header {
@@ -102,6 +105,7 @@ pre {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  min-width: 0;
 }
 
 .brand-row,
@@ -130,6 +134,10 @@ pre {
   min-width: 0;
 }
 
+.brand-row > div:last-child {
+  min-width: 0;
+}
+
 .brand-mark {
   width: 44px;
   height: 44px;
@@ -148,17 +156,23 @@ pre {
   font-size: 20px;
   line-height: 1.15;
   font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .brand-subtitle {
   margin-top: 2px;
   color: var(--muted);
   font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .header-actions {
   align-items: center;
   margin-left: 12px;
+  flex: 0 0 auto;
 }
 
 .token-button,
@@ -202,6 +216,8 @@ pre {
   margin-top: 12px;
   padding-bottom: 2px;
   overflow-x: auto;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .top-tab {
@@ -231,6 +247,8 @@ pre {
 
 .content {
   padding: 18px 16px 28px;
+  min-width: 0;
+  overflow-x: hidden;
 }
 
 .quick-layout,
@@ -245,7 +263,7 @@ pre {
 .api-layout,
 .form-grid,
 .api-meta {
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .quick-layout,
@@ -260,6 +278,8 @@ pre {
 .api-detail,
 .details-body {
   display: block;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .stack > * + *,
@@ -277,6 +297,8 @@ pre {
   background: var(--panel);
   padding: 16px;
   box-shadow: 0 1px 4px rgba(17, 24, 39, 0.06);
+  min-width: 0;
+  max-width: 100%;
 }
 
 .panel-header {
@@ -313,6 +335,7 @@ pre {
 
 .field-input {
   width: 100%;
+  max-width: 100%;
   min-height: 48px;
   border: 1px solid var(--border-strong);
   border-radius: 6px;
@@ -364,6 +387,7 @@ pre {
 
 .input-row {
   width: 100%;
+  min-width: 0;
 }
 
 .input-wrap,
@@ -449,7 +473,7 @@ pre {
 
 .segmented {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   grid-gap: 6px;
   border-radius: 8px;
   background: var(--soft);
@@ -495,6 +519,8 @@ pre {
   border-radius: 6px;
   background: #f8fafc;
   padding: 12px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .preview-box {
@@ -509,6 +535,9 @@ pre {
 }
 
 .json-box {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   max-height: 288px;
   overflow: auto;
   border-radius: 6px;
@@ -517,7 +546,9 @@ pre {
   padding: 12px;
   font-size: 12px;
   line-height: 1.5;
-  white-space: pre;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .json-box-tall {
@@ -529,6 +560,8 @@ pre {
   border-radius: 6px;
   padding: 12px;
   font-size: 14px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .result-status-ok {
@@ -546,6 +579,7 @@ pre {
 .result-path {
   margin-top: 5px;
   overflow-wrap: break-word;
+  word-break: break-word;
   font-size: 12px;
 }
 
@@ -833,11 +867,11 @@ pre {
   }
 
   .form-grid-2 {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 
   .form-grid-3 {
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
   }
 
   .form-span-2 {
@@ -845,7 +879,7 @@ pre {
   }
 
   .button-row {
-    grid-template-columns: 1fr auto;
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
   .scanner-modal {
