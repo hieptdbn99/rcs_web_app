@@ -20,6 +20,7 @@ export function getScanLabel(target: ScanTarget): string {
 
 export const groupMarks: Record<MainTab, string> = {
   quick: "Q",
+  taskGenerate: "G",
   task: "T",
   asset: "K",
   area: "A",

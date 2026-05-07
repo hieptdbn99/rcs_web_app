@@ -45,8 +45,10 @@ next-env.d.ts
 
 # deployment output
 USB_Deploy/
+runtime-data/
 
 certificates
 
 # local reference documents
 *.pdf
+Task_Custom.md

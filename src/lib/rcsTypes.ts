@@ -2,8 +2,9 @@ import type { RcsApiGroup } from "@/lib/rcsApiCatalog";
 
 // ─── Tab / Mode ───────────────────────────────────────────────────────────────
 
-export type MainTab = "quick" | RcsApiGroup;
+export type MainTab = "quick" | "taskGenerate" | RcsApiGroup;
 export type MoveMode = "carrier-to-site" | "site-to-site";
+export type TaskGenerateRouteType = "SITE" | "CARRIER";
 
 // ─── QR Scan targets ──────────────────────────────────────────────────────────
 
@@ -22,7 +23,18 @@ export type ApiFieldScanTarget = {
   label: string;
 };
 
-export type ScanTarget = QuickScanTarget | ApiFieldScanTarget;
+export type TaskGenerateRouteScanTarget = {
+  kind: "taskGenerateRoute";
+  rowId: string;
+  label: string;
+};
+
+export type TaskGenerateRobotScanTarget = {
+  kind: "taskGenerateRobot";
+  label: string;
+};
+
+export type ScanTarget = QuickScanTarget | ApiFieldScanTarget | TaskGenerateRouteScanTarget | TaskGenerateRobotScanTarget;
 
 // ─── Scanner controls ─────────────────────────────────────────────────────────
 
@@ -49,6 +61,20 @@ export type ApiFormSchema = {
 // ─── Generic ──────────────────────────────────────────────────────────────────
 
 export type JsonObject = Record<string, unknown>;
+
+// ─── Task Generate ───────────────────────────────────────────────────────────
+
+export type TaskGenerateRouteRow = {
+  id: string;
+  type: TaskGenerateRouteType;
+  code: string;
+};
+
+export type TaskGenerateFormState = {
+  taskType: string;
+  robotNo: string;
+  routes: TaskGenerateRouteRow[];
+};
 
 // ─── RCS API Response envelope ────────────────────────────────────────────────
 

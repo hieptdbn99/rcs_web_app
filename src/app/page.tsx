@@ -12,7 +12,18 @@ import {
   isRcsSuccess,
   normalizeQrValue,
 } from "@/lib/rcsPayloadBuilder";
-import type { JsonObject, MainTab, MoveMode, RecentAction, RcsEnvelope, ScanTarget, ScannerControls } from "@/lib/rcsTypes";
+import type {
+  JsonObject,
+  MainTab,
+  MoveMode,
+  RecentAction,
+  RcsEnvelope,
+  ScanTarget,
+  ScannerControls,
+  TaskGenerateFormState,
+  TaskGenerateRouteRow,
+  TaskGenerateRouteType,
+} from "@/lib/rcsTypes";
 import { TopTab } from "@/app/components/ui/Panel";
 import { QuickMovePanel } from "@/app/components/QuickMovePanel";
 import { QuickBindPanel } from "@/app/components/QuickBindPanel";
@@ -21,11 +32,13 @@ import { ResultPanel } from "@/app/components/ResultPanel";
 import { RecentList } from "@/app/components/RecentList";
 import { QrScannerModal } from "@/app/components/QrScannerModal";
 import { ApiConsole } from "@/app/components/ApiConsole";
+import { TaskGeneratePanel } from "@/app/components/TaskGeneratePanel";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const RECENT_ACTIONS_KEY = "rcs_recent_actions";
 const OPERATOR_TOKEN_KEY = "rcs_operator_token";
+const TASK_GENERATE_KEY = "rcs_task_generate_form_v2";
 const MAX_RECENT_ACTIONS = 10;
 const DEFAULT_TASK_TYPE_CARRIER = "PF-LMR-COMMON";
 const DEFAULT_TASK_TYPE_SITE = "PF-DETECT-CARRIER";
@@ -36,6 +49,83 @@ function createBrowserId() {
     return crypto.randomUUID();
   }
   return `id-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function createTaskGenerateRoute(type: TaskGenerateRouteType = "SITE", code = ""): TaskGenerateRouteRow {
+  return { id: createBrowserId(), type, code };
+}
+
+function createDefaultTaskGenerateForm(): TaskGenerateFormState {
+  return {
+    taskType: "RunTest",
+    robotNo: "730",
+    routes: [createTaskGenerateRoute("SITE")],
+  };
+}
+
+function isTaskGenerateRouteType(value: unknown): value is TaskGenerateRouteType {
+  return value === "SITE" || value === "CARRIER";
+}
+
+function normalizeTaskGenerateForm(value: unknown): TaskGenerateFormState {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return createDefaultTaskGenerateForm();
+  const source = value as Partial<TaskGenerateFormState>;
+  const routes = Array.isArray(source.routes)
+    ? source.routes.map((route) => {
+        const item = route as Partial<TaskGenerateRouteRow>;
+        return createTaskGenerateRoute(isTaskGenerateRouteType(item.type) ? item.type : "SITE", typeof item.code === "string" ? item.code : "");
+      })
+    : [];
+  return {
+    taskType: typeof source.taskType === "string" ? source.taskType : "RunTest",
+    robotNo: typeof source.robotNo === "string" ? source.robotNo : "730",
+    routes: routes.length ? routes : [createTaskGenerateRoute("SITE")],
+  };
+}
+
+function getTaskGenerateRobotCodes(robotNo: string): string[] {
+  return robotNo.split(",").map((item) => item.trim()).filter(Boolean);
+}
+
+function buildTaskGeneratePayload(form: TaskGenerateFormState): JsonObject {
+  return {
+    targetRoute: form.routes.map((route) => ({
+      type: route.type,
+      code: route.code.trim(),
+      extra: {},
+    })),
+    taskType: form.taskType.trim(),
+    deadline: "",
+    extra: {},
+    interrupt: "",
+    liftCode: "",
+    groupCode: "",
+    robotCode: getTaskGenerateRobotCodes(form.robotNo),
+    robotType: "ROBOTS",
+    robotTaskCode: "",
+  };
+}
+
+async function loadTaskGenerateFormFromFile(): Promise<TaskGenerateFormState | null> {
+  const response = await fetch("/api/task-generate/form", { cache: "no-store" });
+  const data = (await response.json().catch(() => null)) as { success?: boolean; form?: unknown; error?: string } | null;
+  if (!response.ok || !data?.success) {
+    throw new Error(data?.error ?? "Không đọc được file Task generate.");
+  }
+  return data.form ? normalizeTaskGenerateForm(data.form) : null;
+}
+
+async function saveTaskGenerateFormToFile(form: TaskGenerateFormState): Promise<TaskGenerateFormState> {
+  const response = await fetch("/api/task-generate/form", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ form }),
+  });
+  const data = (await response.json().catch(() => null)) as { success?: boolean; form?: unknown; error?: string } | null;
+  if (!response.ok || !data?.success) {
+    throw new Error(data?.error ?? "Không lưu được file Task generate.");
+  }
+  return normalizeTaskGenerateForm(data.form);
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -66,6 +156,19 @@ export default function Home() {
 
   // ── Quick Status state ────────────────────────────────────────────────────
   const [statusTaskCode, setStatusTaskCode] = useState("");
+
+  // ── Task Generate state ──────────────────────────────────────────────────
+  const [taskGenerateForm, setTaskGenerateForm] = useState<TaskGenerateFormState>(() => {
+    if (typeof window === "undefined") return createDefaultTaskGenerateForm();
+    const saved = window.localStorage.getItem(TASK_GENERATE_KEY);
+    if (!saved) return createDefaultTaskGenerateForm();
+    try {
+      return normalizeTaskGenerateForm(JSON.parse(saved));
+    } catch {
+      window.localStorage.removeItem(TASK_GENERATE_KEY);
+      return createDefaultTaskGenerateForm();
+    }
+  });
 
   // ── Shared ────────────────────────────────────────────────────────────────
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
@@ -102,6 +205,8 @@ export default function Home() {
     return sourceCode.trim() && destinationCode.trim();
   }, [carrierCode, destinationCode, moveMode, sourceCode]);
 
+  const taskGeneratePayload = useMemo(() => buildTaskGeneratePayload(taskGenerateForm), [taskGenerateForm]);
+
   const showMessage = useCallback((message: string, type: NoticeType = "info") => {
     setNotice({ id: createBrowserId(), message, type });
   }, []);
@@ -111,6 +216,24 @@ export default function Home() {
     const timer = window.setTimeout(() => setNotice(null), 3200);
     return () => window.clearTimeout(timer);
   }, [notice]);
+
+  useEffect(() => {
+    window.localStorage.setItem(TASK_GENERATE_KEY, JSON.stringify(taskGenerateForm));
+  }, [taskGenerateForm]);
+
+  useEffect(() => {
+    let mounted = true;
+    loadTaskGenerateFormFromFile()
+      .then((savedForm) => {
+        if (mounted && savedForm) setTaskGenerateForm(savedForm);
+      })
+      .catch((error: unknown) => {
+        if (mounted) showMessage(getErrorMessage(error), "error");
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [showMessage]);
 
   // ─── Scanner callbacks ───────────────────────────────────────────────────
 
@@ -122,10 +245,21 @@ export default function Home() {
 
   const applyScanValue = useCallback((target: ScanTarget, value: string) => {
     if (typeof target !== "string") {
-      setApiFormValues((current) => ({
-        ...current,
-        [target.apiId]: { ...(current[target.apiId] ?? {}), [target.fieldName]: value },
-      }));
+      if (target.kind === "apiField") {
+        setApiFormValues((current) => ({
+          ...current,
+          [target.apiId]: { ...(current[target.apiId] ?? {}), [target.fieldName]: value },
+        }));
+      }
+      if (target.kind === "taskGenerateRoute") {
+        setTaskGenerateForm((current) => ({
+          ...current,
+          routes: current.routes.map((route) => (route.id === target.rowId ? { ...route, code: value } : route)),
+        }));
+      }
+      if (target.kind === "taskGenerateRobot") {
+        setTaskGenerateForm((current) => ({ ...current, robotNo: value }));
+      }
       return;
     }
     if (target === "carrier") setCarrierCode(value);
@@ -191,6 +325,48 @@ export default function Home() {
       window.localStorage.removeItem(OPERATOR_TOKEN_KEY);
       showMessage("Đã xóa token API trên thiết bị này.", "info");
     }
+  };
+
+  const setTaskGenerateTaskType = (value: string) => {
+    setTaskGenerateForm((current) => ({ ...current, taskType: value }));
+  };
+
+  const setTaskGenerateRobotNo = (value: string) => {
+    setTaskGenerateForm((current) => ({ ...current, robotNo: value }));
+  };
+
+  const updateTaskGenerateRoute = (rowId: string, patch: Partial<Pick<TaskGenerateRouteRow, "type" | "code">>) => {
+    setTaskGenerateForm((current) => ({
+      ...current,
+      routes: current.routes.map((route) => (route.id === rowId ? { ...route, ...patch } : route)),
+    }));
+  };
+
+  const addTaskGenerateRoute = () => {
+    setTaskGenerateForm((current) => ({
+      ...current,
+      routes: [...current.routes, createTaskGenerateRoute("SITE")],
+    }));
+  };
+
+  const removeTaskGenerateRoute = (rowId: string) => {
+    setTaskGenerateForm((current) => {
+      if (current.routes.length <= 1) return current;
+      return { ...current, routes: current.routes.filter((route) => route.id !== rowId) };
+    });
+  };
+
+  const resetTaskGenerateForm = () => {
+    if (!window.confirm("Xóa form task generate đang lưu trên trình duyệt này?")) return;
+    const nextForm = createDefaultTaskGenerateForm();
+    setTaskGenerateForm(nextForm);
+    window.localStorage.setItem(TASK_GENERATE_KEY, JSON.stringify(nextForm));
+    saveTaskGenerateFormToFile(nextForm)
+      .then((savedForm) => {
+        setTaskGenerateForm(savedForm);
+        showMessage("Đã reset và lưu file Task generate.", "info");
+      })
+      .catch((error: unknown) => showMessage(getErrorMessage(error), "error"));
   };
 
   const callRcsAction = async (apiId: string, payload: JsonObject): Promise<RcsEnvelope> => {
@@ -327,6 +503,64 @@ export default function Home() {
     }
   };
 
+  const executeTaskGenerate = async () => {
+    const taskTypeText = taskGenerateForm.taskType.trim();
+    const robotCodes = getTaskGenerateRobotCodes(taskGenerateForm.robotNo);
+    const routes = taskGenerateForm.routes.map((route, index) => ({
+      index: index + 1,
+      type: route.type,
+      code: route.code.trim(),
+    }));
+    const emptyRoute = routes.find((route) => !route.code);
+
+    if (!taskTypeText) {
+      showMessage("Vui lòng nhập TaskType.", "error");
+      return;
+    }
+    if (emptyRoute) {
+      showMessage(`Vui lòng nhập Value cho route số ${emptyRoute.index}.`, "error");
+      return;
+    }
+    if (routes.length === 0) {
+      showMessage("Vui lòng thêm ít nhất một route.", "error");
+      return;
+    }
+
+    const routeText = routes.map((route) => `${route.index}. ${route.type}: ${route.code}`).join("\n");
+    const robotText = robotCodes.length ? robotCodes.join(", ") : "(không chỉ định)";
+    if (!window.confirm(`Gửi task generate?\n\nTaskType: ${taskTypeText}\nRobotNo: ${robotText}\n\nRoute:\n${routeText}`)) return;
+
+    const executedForm: TaskGenerateFormState = {
+      taskType: taskTypeText,
+      robotNo: taskGenerateForm.robotNo.trim(),
+      routes: taskGenerateForm.routes.map((route) => ({ ...route, code: route.code.trim() })),
+    };
+    const executedPayload = buildTaskGeneratePayload(executedForm);
+
+    setLoadingAction("task-generate");
+    try {
+      const savedForm = await saveTaskGenerateFormToFile(executedForm);
+      setTaskGenerateForm(savedForm);
+      const result = await callRcsAction("task-submit", executedPayload);
+      const taskCode = getTaskCode(result);
+      if (isRcsSuccess(result)) {
+        showMessage("Đã gửi task generate thành công.", "success");
+        saveRecentAction({
+          title: "Task generate",
+          detail: `${taskTypeText} - ${routes.length} route`,
+          code: getRcsCode(result),
+          taskCode,
+        });
+      } else {
+        showMessage(getRcsMessage(result) ?? "RCS trả về lỗi nghiệp vụ.", "error");
+      }
+    } catch (error: unknown) {
+      showMessage(getErrorMessage(error), "error");
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
   const executeCatalogApi = async (api: RcsApiDefinition, payload: JsonObject) => {
     if (api.direction === "callback") {
       showMessage("Đây là callback để RCS gọi vào web, không phải API gọi sang RCS.", "info");
@@ -390,6 +624,12 @@ export default function Home() {
           {/* Tab navigation */}
           <nav className="top-tabs">
             <TopTab active={activeTab === "quick"} mark={groupMarks.quick} label="Nhanh" onClick={() => setActiveTab("quick")} />
+            <TopTab
+              active={activeTab === "taskGenerate"}
+              mark={groupMarks.taskGenerate}
+              label="Task generate"
+              onClick={() => setActiveTab("taskGenerate")}
+            />
             {RCS_API_GROUPS.map((group) => (
               <TopTab
                 key={group.id}
@@ -454,6 +694,28 @@ export default function Home() {
                   startScan={setScanTarget}
                   queryTaskStatus={queryTaskStatus}
                 />
+                <ResultPanel result={lastResult} />
+                <RecentList recentActions={recentActions} />
+              </aside>
+            </section>
+          ) : activeTab === "taskGenerate" ? (
+            <section className="quick-layout">
+              <div className="stack">
+                <TaskGeneratePanel
+                  form={taskGenerateForm}
+                  payloadPreview={taskGeneratePayload}
+                  loading={loadingAction === "task-generate"}
+                  setTaskType={setTaskGenerateTaskType}
+                  setRobotNo={setTaskGenerateRobotNo}
+                  updateRoute={updateTaskGenerateRoute}
+                  addRoute={addTaskGenerateRoute}
+                  removeRoute={removeTaskGenerateRoute}
+                  resetForm={resetTaskGenerateForm}
+                  startScan={setScanTarget}
+                  executeTaskGenerate={executeTaskGenerate}
+                />
+              </div>
+              <aside className="stack">
                 <ResultPanel result={lastResult} />
                 <RecentList recentActions={recentActions} />
               </aside>
