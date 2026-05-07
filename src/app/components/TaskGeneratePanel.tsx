@@ -1,5 +1,6 @@
 import React from "react";
 import { Panel, Field } from "@/app/components/ui/Panel";
+import { Plus, Trash2 } from "lucide-react";
 import { CodeInput } from "@/app/components/ui/CodeInput";
 import { formatJson } from "@/lib/rcsPayloadBuilder";
 import type {
@@ -73,7 +74,7 @@ export function TaskGeneratePanel({
           <p className="muted-text">Type chọn SITE hoặc CARRIER, Value là mã điểm hoặc mã rack.</p>
         </div>
         <button type="button" onClick={addRoute} className="secondary-button small-button button-auto">
-          Add Type
+          <Plus size={16} /> Add Route
         </button>
       </div>
 
@@ -140,8 +141,9 @@ export function TaskGeneratePanel({
                     type="button"
                     onClick={() => removeRoute(route.id)}
                     className="secondary-button small-button button-auto"
+                    title="Xóa route"
                   >
-                    Delete
+                    <Trash2 size={16} />
                   </button>
                 )}
               </div>

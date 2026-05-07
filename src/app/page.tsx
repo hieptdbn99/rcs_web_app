@@ -12,6 +12,7 @@ import {
   isRcsSuccess,
   normalizeQrValue,
 } from "@/lib/rcsPayloadBuilder";
+import toast from "react-hot-toast";
 import type {
   JsonObject,
   MainTab,
@@ -44,7 +45,6 @@ const TASK_GENERATE_KEY = "rcs_task_generate_form_v2";
 const MAX_RECENT_ACTIONS = 10;
 const DEFAULT_TASK_TYPE_CARRIER = "PF-LMR-COMMON";
 const DEFAULT_TASK_TYPE_SITE = "PF-DETECT-CARRIER";
-type NoticeType = "success" | "error" | "info";
 
 function createBrowserId() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -129,7 +129,7 @@ function getTaskGenerateRobotCodes(robotNo: string): string[] {
 }
 
 function buildTaskGeneratePayload(form: TaskGenerateFormState): JsonObject {
-  return {
+  const payload: JsonObject = {
     targetRoute: form.routes.map((route) => ({
       type: route.type,
       code: route.code.trim(),
@@ -141,10 +141,16 @@ function buildTaskGeneratePayload(form: TaskGenerateFormState): JsonObject {
     interrupt: "",
     liftCode: "",
     groupCode: "",
-    robotCode: getTaskGenerateRobotCodes(form.robotNo),
     robotType: "ROBOTS",
     robotTaskCode: "",
   };
+
+  const robotCodes = getTaskGenerateRobotCodes(form.robotNo);
+  if (robotCodes.length > 0) {
+    payload.robotCode = robotCodes;
+  }
+
+  return payload;
 }
 
 async function loadTaskGenerateFormFromFile(): Promise<{ form: TaskGenerateFormState | null; options: TaskGenerateOptions }> {
@@ -228,7 +234,6 @@ export default function Home() {
     if (typeof window === "undefined") return "";
     return window.localStorage.getItem(OPERATOR_TOKEN_KEY) ?? "";
   });
-  const [notice, setNotice] = useState<{ id: string; message: string; type: NoticeType } | null>(null);
 
   // ── Scanner ───────────────────────────────────────────────────────────────
   const [scanTarget, setScanTarget] = useState<ScanTarget | null>(null);
@@ -258,15 +263,15 @@ export default function Home() {
 
   const taskGeneratePayload = useMemo(() => buildTaskGeneratePayload(taskGenerateForm), [taskGenerateForm]);
 
-  const showMessage = useCallback((message: string, type: NoticeType = "info") => {
-    setNotice({ id: createBrowserId(), message, type });
+  const showMessage = useCallback((message: string, type: "success" | "error" | "info" = "info") => {
+    if (type === "success") {
+      toast.success(message);
+    } else if (type === "error") {
+      toast.error(message);
+    } else {
+      toast(message);
+    }
   }, []);
-
-  useEffect(() => {
-    if (!notice) return;
-    const timer = window.setTimeout(() => setNotice(null), 3200);
-    return () => window.clearTimeout(timer);
-  }, [notice]);
 
   useEffect(() => {
     window.localStorage.setItem(TASK_GENERATE_KEY, JSON.stringify(taskGenerateForm));
@@ -644,12 +649,6 @@ export default function Home() {
 
   return (
     <main className="app-main">
-      {notice && (
-        <div className={`app-toast app-toast-${notice.type}`} role="status" aria-live="polite" key={notice.id}>
-          {notice.message}
-        </div>
-      )}
-
       <div className="app-shell">
         {/* Header */}
         <header className="app-header">

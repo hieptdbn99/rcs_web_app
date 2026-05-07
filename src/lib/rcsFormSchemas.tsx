@@ -16,16 +16,18 @@ export function getScanLabel(target: ScanTarget): string {
   return `Quét QR cho ${target.label}`;
 }
 
+import { Zap, ListPlus, FolderKanban, Box, Map, Activity, Link2 } from "lucide-react";
+
 // ─── Tab marks ────────────────────────────────────────────────────────────────
 
-export const groupMarks: Record<MainTab, string> = {
-  quick: "Q",
-  taskGenerate: "G",
-  task: "T",
-  asset: "K",
-  area: "A",
-  status: "S",
-  integration: "I",
+export const groupMarks: Record<MainTab, React.ReactNode> = {
+  quick: <Zap size={18} />,
+  taskGenerate: <ListPlus size={18} />,
+  task: <FolderKanban size={18} />,
+  asset: <Box size={18} />,
+  area: <Map size={18} />,
+  status: <Activity size={18} />,
+  integration: <Link2 size={18} />,
 };
 
 // ─── Shared select options ────────────────────────────────────────────────────

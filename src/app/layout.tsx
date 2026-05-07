@@ -1,11 +1,12 @@
 import type { Metadata, Viewport } from "next";
+import { Toaster } from "react-hot-toast";
 import "./globals.css";
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  maximumScale: 5,
+  userScalable: true,
 };
 
 export const metadata: Metadata = {
@@ -20,7 +21,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="vi" suppressHydrationWarning>
-      <body suppressHydrationWarning>{children}</body>
+      <body suppressHydrationWarning>
+        {children}
+        <Toaster position="top-center" toastOptions={{ duration: 3000, className: 'modern-toast' }} />
+      </body>
     </html>
   );
 }
