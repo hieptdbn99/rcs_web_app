@@ -76,6 +76,13 @@ export type TaskGenerateFormState = {
   routes: TaskGenerateRouteRow[];
 };
 
+export type TaskGenerateOption = {
+  name: string;
+  value: string;
+};
+
+export type TaskGenerateOptions = Record<TaskGenerateRouteType, TaskGenerateOption[]>;
+
 // ─── RCS API Response envelope ────────────────────────────────────────────────
 
 export type RcsEnvelope = {

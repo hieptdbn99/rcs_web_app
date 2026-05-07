@@ -21,6 +21,8 @@ import type {
   ScanTarget,
   ScannerControls,
   TaskGenerateFormState,
+  TaskGenerateOption,
+  TaskGenerateOptions,
   TaskGenerateRouteRow,
   TaskGenerateRouteType,
 } from "@/lib/rcsTypes";
@@ -63,6 +65,10 @@ function createDefaultTaskGenerateForm(): TaskGenerateFormState {
   };
 }
 
+function createDefaultTaskGenerateOptions(): TaskGenerateOptions {
+  return { SITE: [], CARRIER: [] };
+}
+
 function isTaskGenerateRouteType(value: unknown): value is TaskGenerateRouteType {
   return value === "SITE" || value === "CARRIER";
 }
@@ -80,6 +86,41 @@ function normalizeTaskGenerateForm(value: unknown): TaskGenerateFormState {
     taskType: typeof source.taskType === "string" ? source.taskType : "RunTest",
     robotNo: typeof source.robotNo === "string" ? source.robotNo : "730",
     routes: routes.length ? routes : [createTaskGenerateRoute("SITE")],
+  };
+}
+
+function normalizeTaskGenerateOption(value: unknown): TaskGenerateOption | null {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed ? { name: trimmed, value: trimmed } : null;
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const source = value as Partial<TaskGenerateOption>;
+  const optionValue = typeof source.value === "string" ? source.value.trim() : "";
+  if (!optionValue) return null;
+  const optionName = typeof source.name === "string" && source.name.trim() ? source.name.trim() : optionValue;
+  return { name: optionName, value: optionValue };
+}
+
+function normalizeTaskGenerateOptionList(value: unknown): TaskGenerateOption[] {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  const options: TaskGenerateOption[] = [];
+  for (const item of value) {
+    const option = normalizeTaskGenerateOption(item);
+    if (!option || seen.has(option.value)) continue;
+    seen.add(option.value);
+    options.push(option);
+  }
+  return options;
+}
+
+function normalizeTaskGenerateOptions(value: unknown): TaskGenerateOptions {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return createDefaultTaskGenerateOptions();
+  const source = value as Record<string, unknown>;
+  return {
+    SITE: normalizeTaskGenerateOptionList(source.SITE),
+    CARRIER: normalizeTaskGenerateOptionList(source.CARRIER),
   };
 }
 
@@ -106,26 +147,35 @@ function buildTaskGeneratePayload(form: TaskGenerateFormState): JsonObject {
   };
 }
 
-async function loadTaskGenerateFormFromFile(): Promise<TaskGenerateFormState | null> {
+async function loadTaskGenerateFormFromFile(): Promise<{ form: TaskGenerateFormState | null; options: TaskGenerateOptions }> {
   const response = await fetch("/api/task-generate/form", { cache: "no-store" });
-  const data = (await response.json().catch(() => null)) as { success?: boolean; form?: unknown; error?: string } | null;
+  const data = (await response.json().catch(() => null)) as { success?: boolean; form?: unknown; options?: unknown; error?: string } | null;
   if (!response.ok || !data?.success) {
     throw new Error(data?.error ?? "Không đọc được file Task generate.");
   }
-  return data.form ? normalizeTaskGenerateForm(data.form) : null;
+  return {
+    form: data.form ? normalizeTaskGenerateForm(data.form) : null,
+    options: normalizeTaskGenerateOptions(data.options),
+  };
 }
 
-async function saveTaskGenerateFormToFile(form: TaskGenerateFormState): Promise<TaskGenerateFormState> {
+async function saveTaskGenerateFormToFile(
+  form: TaskGenerateFormState,
+  rememberOptions = false,
+): Promise<{ form: TaskGenerateFormState; options: TaskGenerateOptions }> {
   const response = await fetch("/api/task-generate/form", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ form }),
+    body: JSON.stringify({ form, rememberOptions }),
   });
-  const data = (await response.json().catch(() => null)) as { success?: boolean; form?: unknown; error?: string } | null;
+  const data = (await response.json().catch(() => null)) as { success?: boolean; form?: unknown; options?: unknown; error?: string } | null;
   if (!response.ok || !data?.success) {
     throw new Error(data?.error ?? "Không lưu được file Task generate.");
   }
-  return normalizeTaskGenerateForm(data.form);
+  return {
+    form: normalizeTaskGenerateForm(data.form),
+    options: normalizeTaskGenerateOptions(data.options),
+  };
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -169,6 +219,7 @@ export default function Home() {
       return createDefaultTaskGenerateForm();
     }
   });
+  const [taskGenerateOptions, setTaskGenerateOptions] = useState<TaskGenerateOptions>(createDefaultTaskGenerateOptions);
 
   // ── Shared ────────────────────────────────────────────────────────────────
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
@@ -224,8 +275,10 @@ export default function Home() {
   useEffect(() => {
     let mounted = true;
     loadTaskGenerateFormFromFile()
-      .then((savedForm) => {
-        if (mounted && savedForm) setTaskGenerateForm(savedForm);
+      .then((savedState) => {
+        if (!mounted) return;
+        if (savedState.form) setTaskGenerateForm(savedState.form);
+        setTaskGenerateOptions(savedState.options);
       })
       .catch((error: unknown) => {
         if (mounted) showMessage(getErrorMessage(error), "error");
@@ -362,8 +415,9 @@ export default function Home() {
     setTaskGenerateForm(nextForm);
     window.localStorage.setItem(TASK_GENERATE_KEY, JSON.stringify(nextForm));
     saveTaskGenerateFormToFile(nextForm)
-      .then((savedForm) => {
-        setTaskGenerateForm(savedForm);
+      .then((savedState) => {
+        setTaskGenerateForm(savedState.form);
+        setTaskGenerateOptions(savedState.options);
         showMessage("Đã reset và lưu file Task generate.", "info");
       })
       .catch((error: unknown) => showMessage(getErrorMessage(error), "error"));
@@ -539,8 +593,9 @@ export default function Home() {
 
     setLoadingAction("task-generate");
     try {
-      const savedForm = await saveTaskGenerateFormToFile(executedForm);
-      setTaskGenerateForm(savedForm);
+      const savedState = await saveTaskGenerateFormToFile(executedForm, true);
+      setTaskGenerateForm(savedState.form);
+      setTaskGenerateOptions(savedState.options);
       const result = await callRcsAction("task-submit", executedPayload);
       const taskCode = getTaskCode(result);
       if (isRcsSuccess(result)) {
@@ -703,6 +758,7 @@ export default function Home() {
               <div className="stack">
                 <TaskGeneratePanel
                   form={taskGenerateForm}
+                  routeOptions={taskGenerateOptions}
                   payloadPreview={taskGeneratePayload}
                   loading={loadingAction === "task-generate"}
                   setTaskType={setTaskGenerateTaskType}

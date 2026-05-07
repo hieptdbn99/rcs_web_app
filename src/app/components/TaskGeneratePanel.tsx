@@ -6,12 +6,14 @@ import type {
   JsonObject,
   ScanTarget,
   TaskGenerateFormState,
+  TaskGenerateOptions,
   TaskGenerateRouteRow,
   TaskGenerateRouteType,
 } from "@/lib/rcsTypes";
 
 type Props = {
   form: TaskGenerateFormState;
+  routeOptions: TaskGenerateOptions;
   payloadPreview: JsonObject;
   loading: boolean;
   setTaskType: (value: string) => void;
@@ -26,6 +28,7 @@ type Props = {
 
 export function TaskGeneratePanel({
   form,
+  routeOptions,
   payloadPreview,
   loading,
   setTaskType,
@@ -75,56 +78,76 @@ export function TaskGeneratePanel({
       </div>
 
       <div className="task-route-list">
-        {form.routes.map((route, index) => (
-          <div key={route.id} className="task-route-row">
-            <div className="route-index">{index + 1}</div>
-            <div className="task-route-fields">
-              <Field label="Type">
-                <select
-                  suppressHydrationWarning
-                  value={route.type}
-                  onChange={(event) => updateRoute(route.id, { type: event.target.value as TaskGenerateRouteType })}
-                  className="field-input"
-                >
-                  <option value="SITE">SITE</option>
-                  <option value="CARRIER">CARRIER</option>
-                </select>
-              </Field>
-              <Field label="Value">
-                <div className="input-row">
-                  <div className="input-grow">
-                    <input
+        {form.routes.map((route, index) => {
+          const selectedOptionValue = routeOptions[route.type].some((option) => option.value === route.code) ? route.code : "";
+          return (
+            <div key={route.id} className="task-route-row">
+              <div className="route-index">{index + 1}</div>
+              <div className="task-route-fields">
+                <Field label="Type">
+                  <select
+                    suppressHydrationWarning
+                    value={route.type}
+                    onChange={(event) => updateRoute(route.id, { type: event.target.value as TaskGenerateRouteType })}
+                    className="field-input"
+                  >
+                    <option value="SITE">SITE</option>
+                    <option value="CARRIER">CARRIER</option>
+                  </select>
+                </Field>
+                <Field label="Value">
+                  <div className="route-value-box">
+                    <select
                       suppressHydrationWarning
-                      value={route.code}
-                      onChange={(event) => updateRoute(route.id, { code: event.target.value })}
-                      className="field-input field-input-code"
-                      placeholder={route.type === "SITE" ? "VD: 0030692AA0017019" : "VD: 100001"}
-                    />
+                      value={selectedOptionValue}
+                      onChange={(event) => {
+                        if (event.target.value) updateRoute(route.id, { code: event.target.value });
+                      }}
+                      className="field-input route-value-select"
+                    >
+                      <option value="">Chọn value đã execute</option>
+                      {routeOptions[route.type].map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.name}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="input-row">
+                      <div className="input-grow">
+                        <input
+                          suppressHydrationWarning
+                          value={route.code}
+                          onChange={(event) => updateRoute(route.id, { code: event.target.value })}
+                          className="field-input field-input-code"
+                          placeholder={route.type === "SITE" ? "VD: 0030692AA0017019" : "VD: 100001"}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => startScan({ kind: "taskGenerateRoute", rowId: route.id, label: `route ${index + 1}` })}
+                        className="icon-button scan-button"
+                        aria-label={`Quét route ${index + 1}`}
+                      >
+                        QR
+                      </button>
+                    </div>
                   </div>
+                </Field>
+              </div>
+              <div className="route-actions">
+                {index > 0 && (
                   <button
                     type="button"
-                    onClick={() => startScan({ kind: "taskGenerateRoute", rowId: route.id, label: `route ${index + 1}` })}
-                    className="icon-button scan-button"
-                    aria-label={`Quét route ${index + 1}`}
+                    onClick={() => removeRoute(route.id)}
+                    className="secondary-button small-button button-auto"
                   >
-                    QR
+                    Delete
                   </button>
-                </div>
-              </Field>
+                )}
+              </div>
             </div>
-            <div className="route-actions">
-              {index > 0 && (
-                <button
-                  type="button"
-                  onClick={() => removeRoute(route.id)}
-                  className="secondary-button small-button button-auto"
-                >
-                  Delete
-                </button>
-              )}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="button-row">

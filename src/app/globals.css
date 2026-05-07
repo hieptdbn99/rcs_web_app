@@ -601,6 +601,14 @@ pre {
   text-align: right;
 }
 
+.route-value-box > * + * {
+  margin-top: 8px;
+}
+
+.route-value-select {
+  background: #ffffff;
+}
+
 .json-box {
   width: 100%;
   max-width: 100%;
