@@ -60,7 +60,7 @@ function createTaskGenerateRoute(type: TaskGenerateRouteType = "SITE", code = ""
 function createDefaultTaskGenerateForm(): TaskGenerateFormState {
   return {
     taskType: "RunTest",
-    robotNo: "730",
+    robotNo: "",
     routes: [createTaskGenerateRoute("SITE")],
   };
 }
@@ -84,7 +84,7 @@ function normalizeTaskGenerateForm(value: unknown): TaskGenerateFormState {
     : [];
   return {
     taskType: typeof source.taskType === "string" ? source.taskType : "RunTest",
-    robotNo: typeof source.robotNo === "string" ? source.robotNo : "730",
+    robotNo: typeof source.robotNo === "string" ? source.robotNo : "",
     routes: routes.length ? routes : [createTaskGenerateRoute("SITE")],
   };
 }
@@ -141,12 +141,12 @@ function buildTaskGeneratePayload(form: TaskGenerateFormState): JsonObject {
     interrupt: "",
     liftCode: "",
     groupCode: "",
-    robotType: "ROBOTS",
     robotTaskCode: "",
   };
 
   const robotCodes = getTaskGenerateRobotCodes(form.robotNo);
   if (robotCodes.length > 0) {
+    payload.robotType = "ROBOTS";
     payload.robotCode = robotCodes;
   }
 

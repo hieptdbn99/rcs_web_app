@@ -44,7 +44,7 @@ export function TaskGeneratePanel({
   return (
     <Panel title="Task generate" mark="G">
       <div className="summary-box">
-        Nhập TaskType, RobotNo và danh sách điểm/kệ theo thứ tự robot cần đi qua. Dữ liệu form tự lưu trên trình duyệt này.
+        Nhập TaskType và danh sách điểm/kệ theo thứ tự robot cần đi qua. RobotNo có thể để trống để RCS tự điều phối.
       </div>
 
       <div className="form-grid form-grid-2">
@@ -63,7 +63,7 @@ export function TaskGeneratePanel({
           onChange={setRobotNo}
           scanTarget={{ kind: "taskGenerateRobot", label: "RobotNo" }}
           startScan={startScan}
-          placeholder="VD: 730"
+          placeholder="Để trống để RCS tự chọn"
           mark="R"
         />
       </div>
