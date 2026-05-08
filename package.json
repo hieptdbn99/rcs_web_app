@@ -3,8 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "dev:https": "next dev --experimental-https --hostname 0.0.0.0",
+    "dev": "next dev --webpack",
+    "dev:https": "node scripts/dev-https.mjs",
+    "dev:https:auto": "next dev --webpack --experimental-https --hostname 0.0.0.0",
     "build": "next build",
     "postbuild": "python build_usb.py",
     "start": "next start",
