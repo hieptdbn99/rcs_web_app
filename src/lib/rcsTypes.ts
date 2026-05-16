@@ -14,7 +14,8 @@ export type QuickScanTarget =
   | "destination"
   | "bindCarrier"
   | "bindSite"
-  | "statusTask";
+  | "statusTask"
+  | "cancelTask";
 
 export type ApiFieldScanTarget = {
   kind: "apiField";

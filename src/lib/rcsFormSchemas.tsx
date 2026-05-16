@@ -9,6 +9,7 @@ export const quickScanLabels: Record<QuickScanTarget, string> = {
   bindCarrier: "Quét QR mã kệ cần gắn",
   bindSite: "Quét QR vị trí hiện tại",
   statusTask: "Quét QR mã task",
+  cancelTask: "Quét QR mã task cần hủy",
 };
 
 export function getScanLabel(target: ScanTarget): string {

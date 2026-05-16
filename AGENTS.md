@@ -7,7 +7,9 @@ This version has breaking changes — APIs, conventions, and file structure may 
 <!-- BEGIN:rcs-project-memory -->
 # Project Memory: RCS Robot Workflow
 
-Last analyzed: 2026-04-29.
+Last analyzed: 2026-05-16.
+
+Active branch context: `custom_for_low_browser`. `package.json` pins `"browserslist": ["chrome 85"]` for compatibility with older factory-floor browsers. Keep transpile/polyfill assumptions consistent with that target when changing build config or adding modern JS APIs.
 
 This repository is `rcs_web_app`, a Next.js 16 App Router web app for factory operators and technicians to operate an RCS-2000 robot control system from desktop or mobile browser. The main use cases are scanning QR codes, sending robot tasks, binding or unbinding carriers/racks to sites, querying task/robot/carrier status, and exposing callback endpoints for RCS to call back into the web app.
 
@@ -46,6 +48,8 @@ The app is a client-side operator panel with tabs:
 - `Khu vực`: pause/restore, homing, banish/clear area, blockade/open area.
 - `Trạng thái`: query task, robot, and carrier.
 - `Tích hợp và callback`: outbound equipment notification and inbound callback documentation.
+
+`src/app/components/TaskGeneratePanel.tsx` is a separate route-sequence builder integrated into the main page. It persists form state across sessions and supports dynamic multi-stop task generation. See commits `395737a`, `9763ab3`, `639e4d6`, `5cf1b8a` for its evolution.
 
 The top-level state lives in `src/app/page.tsx`. QR scanning opens `QrScannerModal`, reads with `BrowserMultiFormatReader.decodeFromVideoDevice`, normalizes the scanned value, then writes it into either quick-flow state or an API form field.
 
@@ -232,11 +236,13 @@ This is only a stub for integration. If RCS requires WMS decisions, resource all
 
 `package.json` scripts:
 
-- `npm run dev`: HTTP dev server.
-- `npm run dev:https`: Next dev HTTPS on `0.0.0.0`, useful for phone camera QR scanning.
+- `npm run dev`: HTTP dev server (`next dev --webpack`; webpack is explicit because the default would change).
+- `npm run dev:https`: runs `scripts/dev-https.mjs`, which auto-generates a self-signed cert into `certificates/` (10-year validity, SAN entries for `localhost` and detected LAN IPv4s) using the `selfsigned` package, then starts `next dev --webpack --experimental-https --hostname 0.0.0.0`. Useful for phone camera QR scanning.
+- `npm run dev:https:mkcert`: same Next flags but expects user-provided certs (no auto-generation).
 - `npm run lint`: ESLint CLI.
 - `npm run build`: runs `next build`, then `postbuild`.
 - `postbuild`: runs `python build_usb.py`.
+- Type-check (no script alias): `npx tsc --noEmit --incremental false`.
 
 `build_usb.py` behavior:
 

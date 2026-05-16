@@ -31,6 +31,7 @@ import { TopTab } from "@/app/components/ui/Panel";
 import { QuickMovePanel } from "@/app/components/QuickMovePanel";
 import { QuickBindPanel } from "@/app/components/QuickBindPanel";
 import { QuickStatusPanel } from "@/app/components/QuickStatusPanel";
+import { QuickCancelPanel } from "@/app/components/QuickCancelPanel";
 import { ResultPanel } from "@/app/components/ResultPanel";
 import { RecentList } from "@/app/components/RecentList";
 import { QrScannerModal } from "@/app/components/QrScannerModal";
@@ -213,6 +214,10 @@ export default function Home() {
   // ── Quick Status state ────────────────────────────────────────────────────
   const [statusTaskCode, setStatusTaskCode] = useState("");
 
+  // ── Quick Cancel state ────────────────────────────────────────────────────
+  const [cancelTaskCode, setCancelTaskCode] = useState("");
+  const [cancelType, setCancelType] = useState<"CANCEL" | "DROP">("CANCEL");
+
   // ── Task Generate state ──────────────────────────────────────────────────
   const [taskGenerateForm, setTaskGenerateForm] = useState<TaskGenerateFormState>(() => {
     if (typeof window === "undefined") return createDefaultTaskGenerateForm();
@@ -326,6 +331,7 @@ export default function Home() {
     if (target === "bindCarrier") setBindCarrierCode(value);
     if (target === "bindSite") setBindSiteCode(value);
     if (target === "statusTask") setStatusTaskCode(value);
+    if (target === "cancelTask") setCancelTaskCode(value);
   }, []);
 
   // Cleanup scanner on unmount
@@ -562,6 +568,40 @@ export default function Home() {
     }
   };
 
+  const executeCancelTask = async () => {
+    const code = cancelTaskCode.trim();
+    if (!code) {
+      showMessage("Vui lòng nhập hoặc quét mã task cần hủy.", "error");
+      return;
+    }
+    if (!window.confirm(`Hủy task ${code}?\n\nKiểu hủy: ${cancelType}`)) return;
+
+    setLoadingAction("cancel");
+    try {
+      const result = await callRcsAction("task-cancel", {
+        robotTaskCode: code,
+        cancelType,
+        reason: "Manual cancel from Quick Panel",
+        extra: null,
+      });
+      if (isRcsSuccess(result)) {
+        showMessage("Đã gửi lệnh hủy task.", "success");
+        saveRecentAction({
+          title: "Hủy task",
+          detail: `Task ${code} • ${cancelType}`,
+          taskCode: code,
+          code,
+        });
+      } else {
+        showMessage(getRcsMessage(result) ?? "Hủy task thất bại.", "error");
+      }
+    } catch (error: unknown) {
+      showMessage(getErrorMessage(error), "error");
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
   const executeTaskGenerate = async () => {
     const taskTypeText = taskGenerateForm.taskType.trim();
     const robotCodes = getTaskGenerateRobotCodes(taskGenerateForm.robotNo);
@@ -741,6 +781,15 @@ export default function Home() {
                 />
               </div>
               <aside className="stack">
+                <QuickCancelPanel
+                  cancelTaskCode={cancelTaskCode}
+                  setCancelTaskCode={setCancelTaskCode}
+                  cancelType={cancelType}
+                  setCancelType={setCancelType}
+                  loading={loadingAction === "cancel"}
+                  startScan={setScanTarget}
+                  executeCancelTask={executeCancelTask}
+                />
                 <QuickStatusPanel
                   statusTaskCode={statusTaskCode}
                   setStatusTaskCode={setStatusTaskCode}
