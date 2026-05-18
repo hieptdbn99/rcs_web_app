@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(ls -la .env*)",
+      "Bash(command -v docker)",
+      "Bash(docker --version)"
     ]
   }
 }

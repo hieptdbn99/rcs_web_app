@@ -1,0 +1,39 @@
+services:
+  rcs-web-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: rcs-web-app:latest
+    container_name: rcs-web-app
+    restart: unless-stopped
+    ports:
+      # HTTP for desktop use (host 3010 -> container 3000 to avoid clashing with common dev ports)
+      - "3010:3000"
+      # HTTPS for phone camera QR scanning (self-signed cert auto-generated on first run)
+      - "3443:3443"
+    environment:
+      # Required: RCS controller endpoint. Override in .env or here.
+      RCS_HOST: ${RCS_HOST:-https://192.168.1.100}
+      # Optional signing credentials
+      APP_KEY: ${APP_KEY:-}
+      APP_SECRET: ${APP_SECRET:-}
+      # Hardening / behaviour
+      RCS_REQUEST_TIMEOUT_MS: ${RCS_REQUEST_TIMEOUT_MS:-15000}
+      RCS_ALLOW_INSECURE_TLS: ${RCS_ALLOW_INSECURE_TLS:-true}
+      RCS_OPERATOR_TOKEN: ${RCS_OPERATOR_TOKEN:-}
+      RCS_ALLOWED_CLIENT_IPS: ${RCS_ALLOWED_CLIENT_IPS:-}
+      RCS_CALLBACK_TOKEN: ${RCS_CALLBACK_TOKEN:-}
+      # Comma-separated LAN origins allowed by Next dev/build. Usually safe to leave blank in production.
+      ALLOWED_DEV_ORIGINS: ${ALLOWED_DEV_ORIGINS:-}
+    volumes:
+      # Persist auto-generated self-signed cert across container rebuilds
+      - rcs-certs:/app/certificates
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000/', r => process.exit(r.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  rcs-certs:
